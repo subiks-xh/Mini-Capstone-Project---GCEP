@@ -1,5 +1,5 @@
-const mongoose = require('mongoose');
-const logger = require('../utils/logger');
+const mongoose = require("mongoose");
+const logger = require("../utils/logger");
 
 const connectDB = async () => {
   try {
@@ -9,34 +9,33 @@ const connectDB = async () => {
     });
 
     logger.info(`MongoDB Connected: ${conn.connection.host}`);
-    
+
     // Log connection events
-    mongoose.connection.on('connected', () => {
-      logger.info('Mongoose connected to MongoDB');
+    mongoose.connection.on("connected", () => {
+      logger.info("Mongoose connected to MongoDB");
     });
 
-    mongoose.connection.on('error', (err) => {
-      logger.error('Mongoose connection error:', err);
+    mongoose.connection.on("error", (err) => {
+      logger.error("Mongoose connection error:", err);
     });
 
-    mongoose.connection.on('disconnected', () => {
-      logger.warn('Mongoose disconnected from MongoDB');
+    mongoose.connection.on("disconnected", () => {
+      logger.warn("Mongoose disconnected from MongoDB");
     });
 
     // Graceful shutdown
-    process.on('SIGINT', async () => {
+    process.on("SIGINT", async () => {
       try {
         await mongoose.connection.close();
-        logger.info('MongoDB connection closed through app termination');
+        logger.info("MongoDB connection closed through app termination");
         process.exit(0);
       } catch (error) {
-        logger.error('Error during MongoDB shutdown:', error);
+        logger.error("Error during MongoDB shutdown:", error);
         process.exit(1);
       }
     });
-
   } catch (error) {
-    logger.error('Database connection error:', error);
+    logger.error("Database connection error:", error);
     process.exit(1);
   }
 };

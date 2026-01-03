@@ -1,7 +1,7 @@
-const jwt = require('jsonwebtoken');
-const User = require('../models/User');
-const logger = require('../utils/logger');
-const { HTTP_STATUS, RESPONSE_MESSAGES } = require('../config/constants');
+const jwt = require("jsonwebtoken");
+const User = require("../models/User");
+const logger = require("../utils/logger");
+const { HTTP_STATUS, RESPONSE_MESSAGES } = require("../config/constants");
 
 /**
  * Middleware to authenticate JWT token from cookies or Authorization header
@@ -15,7 +15,10 @@ const authenticate = async (req, res, next) => {
       token = req.cookies.token;
     }
     // Check for token in Authorization header (for mobile/API clients)
-    else if (req.headers.authorization && req.headers.authorization.startsWith('Bearer ')) {
+    else if (
+      req.headers.authorization &&
+      req.headers.authorization.startsWith("Bearer ")
+    ) {
       token = req.headers.authorization.substring(7);
     }
 
@@ -23,21 +26,21 @@ const authenticate = async (req, res, next) => {
     if (!token) {
       return res.status(HTTP_STATUS.UNAUTHORIZED).json({
         success: false,
-        message: RESPONSE_MESSAGES.ERROR.TOKEN_REQUIRED
+        message: RESPONSE_MESSAGES.ERROR.TOKEN_REQUIRED,
       });
     }
 
     try {
       // Verify token
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
-      
+
       // Get user from database
-      const user = await User.findById(decoded.id).select('+password');
-      
+      const user = await User.findById(decoded.id).select("+password");
+
       if (!user) {
         return res.status(HTTP_STATUS.UNAUTHORIZED).json({
           success: false,
-          message: RESPONSE_MESSAGES.ERROR.USER_NOT_FOUND
+          message: RESPONSE_MESSAGES.ERROR.USER_NOT_FOUND,
         });
       }
 
@@ -45,7 +48,7 @@ const authenticate = async (req, res, next) => {
       if (!user.isActive) {
         return res.status(HTTP_STATUS.UNAUTHORIZED).json({
           success: false,
-          message: 'Account has been deactivated'
+          message: "Account has been deactivated",
         });
       }
 
@@ -55,31 +58,30 @@ const authenticate = async (req, res, next) => {
         name: user.name,
         email: user.email,
         role: user.role,
-        department: user.department
+        department: user.department,
       };
 
       next();
     } catch (jwtError) {
-      logger.error('JWT verification failed:', jwtError.message);
-      
-      if (jwtError.name === 'TokenExpiredError') {
+      logger.error("JWT verification failed:", jwtError.message);
+
+      if (jwtError.name === "TokenExpiredError") {
         return res.status(HTTP_STATUS.UNAUTHORIZED).json({
           success: false,
-          message: RESPONSE_MESSAGES.ERROR.EXPIRED_TOKEN
+          message: RESPONSE_MESSAGES.ERROR.EXPIRED_TOKEN,
         });
       }
-      
+
       return res.status(HTTP_STATUS.UNAUTHORIZED).json({
         success: false,
-        message: RESPONSE_MESSAGES.ERROR.INVALID_TOKEN
+        message: RESPONSE_MESSAGES.ERROR.INVALID_TOKEN,
       });
     }
-
   } catch (error) {
-    logger.error('Authentication middleware error:', error);
+    logger.error("Authentication middleware error:", error);
     return res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
       success: false,
-      message: RESPONSE_MESSAGES.ERROR.SERVER_ERROR
+      message: RESPONSE_MESSAGES.ERROR.SERVER_ERROR,
     });
   }
 };
@@ -94,7 +96,10 @@ const optionalAuth = async (req, res, next) => {
 
     if (req.cookies && req.cookies.token) {
       token = req.cookies.token;
-    } else if (req.headers.authorization && req.headers.authorization.startsWith('Bearer ')) {
+    } else if (
+      req.headers.authorization &&
+      req.headers.authorization.startsWith("Bearer ")
+    ) {
       token = req.headers.authorization.substring(7);
     }
 
@@ -106,14 +111,14 @@ const optionalAuth = async (req, res, next) => {
     try {
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
       const user = await User.findById(decoded.id);
-      
+
       if (user && user.isActive) {
         req.user = {
           id: user._id,
           name: user.name,
           email: user.email,
           role: user.role,
-          department: user.department
+          department: user.department,
         };
       } else {
         req.user = null;
@@ -124,7 +129,7 @@ const optionalAuth = async (req, res, next) => {
 
     next();
   } catch (error) {
-    logger.error('Optional authentication error:', error);
+    logger.error("Optional authentication error:", error);
     req.user = null;
     next();
   }
@@ -132,5 +137,5 @@ const optionalAuth = async (req, res, next) => {
 
 module.exports = {
   authenticate,
-  optionalAuth
+  optionalAuth,
 };

@@ -7,14 +7,16 @@ A production-ready, enterprise-grade MERN stack web application for managing com
 **Status:** ✅ Day 1 Completed - Backend Foundation with Authentication
 
 This system solves the critical business problem of centralized complaint management, providing:
+
 - **Transparency & Tracking**: Real-time complaint status monitoring
-- **Staff Accountability**: Clear assignment and resolution responsibilities  
+- **Staff Accountability**: Clear assignment and resolution responsibilities
 - **Automated Escalation**: Time-based escalation to prevent delays
 - **User Satisfaction**: Comprehensive feedback and closure workflow
 
 ## 🏗️ System Architecture
 
 ### **Tech Stack**
+
 - **Backend**: Node.js, Express.js, MongoDB, JWT Authentication
 - **Frontend**: React.js with Vite (Coming in Day 5)
 - **Database**: MongoDB with Mongoose ODM
@@ -22,6 +24,7 @@ This system solves the critical business problem of centralized complaint manage
 - **Deployment**: Production-ready for Render/Railway + MongoDB Atlas
 
 ### **User Roles**
+
 1. **User (Complainant)** - Submit and track complaints, provide feedback
 2. **Staff (Resolver)** - Manage assigned complaints, update status
 3. **Admin (Supervisor)** - Full system management, analytics, escalations
@@ -29,9 +32,10 @@ This system solves the critical business problem of centralized complaint manage
 ## 📅 Development Progress
 
 ### ✅ Day 1: Project Setup & Backend Foundation (COMPLETED)
+
 - [x] Complete project structure created
 - [x] Backend initialized with Express.js
-- [x] MongoDB connection configured  
+- [x] MongoDB connection configured
 - [x] User model with role-based schema
 - [x] JWT authentication system implemented
 - [x] Security middleware (auth, validation, error handling)
@@ -40,8 +44,9 @@ This system solves the critical business problem of centralized complaint manage
 - [x] Rate limiting and CORS protection
 
 ### 🎯 Upcoming Days
+
 - **Day 2**: Complaint Models & Core APIs
-- **Day 3**: Admin Features  
+- **Day 3**: Admin Features
 - **Day 4**: Escalation System
 - **Day 5**: Frontend Setup & Auth UI
 - **Day 6-10**: Complete frontend, testing, deployment
@@ -49,6 +54,7 @@ This system solves the critical business problem of centralized complaint manage
 ## 🗄️ Database Schema
 
 ### User Collection
+
 ```javascript
 {
   _id: ObjectId,
@@ -67,6 +73,7 @@ This system solves the critical business problem of centralized complaint manage
 ## 🔐 Authentication System
 
 ### Features Implemented
+
 - **JWT Token-based Authentication** with secure httpOnly cookies
 - **Password Hashing** using bcrypt with 12 rounds
 - **Role-based Access Control** middleware
@@ -75,9 +82,10 @@ This system solves the critical business problem of centralized complaint manage
 - **Secure Cookie Management** with CSRF protection
 
 ### API Endpoints (Day 1)
+
 ```
 POST /api/auth/register - User registration
-POST /api/auth/login - User authentication  
+POST /api/auth/login - User authentication
 POST /api/auth/logout - Secure logout
 GET  /api/auth/me - Get current user profile
 PUT  /api/auth/password - Update password
@@ -88,11 +96,13 @@ GET  /api/health - System health check
 ## 🛠️ Setup Instructions
 
 ### Prerequisites
+
 - Node.js (v18+)
 - MongoDB (local or MongoDB Atlas)
 - npm or yarn
 
 ### Backend Setup
+
 ```bash
 # Navigate to backend directory
 cd backend
@@ -112,6 +122,7 @@ npm start
 ```
 
 ### Environment Variables
+
 ```bash
 NODE_ENV=development
 PORT=5000
@@ -130,18 +141,19 @@ RATE_LIMIT_MAX_REQUESTS=100
 The backend includes comprehensive API tests. You can test using:
 
 1. **cURL** (see `api-tests.md`)
-2. **Postman/Thunder Client**  
+2. **Postman/Thunder Client**
 3. **PowerShell script** (`test-api.ps1`)
 4. **Node.js script** (`test-api.js`)
 
 ### Sample API Usage
+
 ```bash
 # Register a new user
 curl -X POST http://localhost:5000/api/auth/register \
   -H "Content-Type: application/json" \
   -d '{
     "name": "John Doe",
-    "email": "john@example.com", 
+    "email": "john@example.com",
     "password": "Password123",
     "role": "user"
   }'

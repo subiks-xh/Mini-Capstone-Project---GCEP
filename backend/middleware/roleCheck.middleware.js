@@ -1,5 +1,9 @@
-const { USER_ROLES, HTTP_STATUS, RESPONSE_MESSAGES } = require('../config/constants');
-const logger = require('../utils/logger');
+const {
+  USER_ROLES,
+  HTTP_STATUS,
+  RESPONSE_MESSAGES,
+} = require("../config/constants");
+const logger = require("../utils/logger");
 
 /**
  * Middleware to check if user has required role(s)
@@ -12,26 +16,30 @@ const authorize = (...roles) => {
       if (!req.user) {
         return res.status(HTTP_STATUS.UNAUTHORIZED).json({
           success: false,
-          message: RESPONSE_MESSAGES.ERROR.UNAUTHORIZED
+          message: RESPONSE_MESSAGES.ERROR.UNAUTHORIZED,
         });
       }
 
       // Check if user's role is in the allowed roles
       if (!roles.includes(req.user.role)) {
-        logger.warn(`Access denied for user ${req.user.email} with role ${req.user.role}. Required roles: ${roles.join(', ')}`);
-        
+        logger.warn(
+          `Access denied for user ${req.user.email} with role ${
+            req.user.role
+          }. Required roles: ${roles.join(", ")}`
+        );
+
         return res.status(HTTP_STATUS.FORBIDDEN).json({
           success: false,
-          message: RESPONSE_MESSAGES.ERROR.FORBIDDEN
+          message: RESPONSE_MESSAGES.ERROR.FORBIDDEN,
         });
       }
 
       next();
     } catch (error) {
-      logger.error('Authorization middleware error:', error);
+      logger.error("Authorization middleware error:", error);
       return res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
         success: false,
-        message: RESPONSE_MESSAGES.ERROR.SERVER_ERROR
+        message: RESPONSE_MESSAGES.ERROR.SERVER_ERROR,
       });
     }
   };
@@ -56,30 +64,34 @@ const requireOwnershipOrAdmin = (req, res, next) => {
     if (!req.user) {
       return res.status(HTTP_STATUS.UNAUTHORIZED).json({
         success: false,
-        message: RESPONSE_MESSAGES.ERROR.UNAUTHORIZED
+        message: RESPONSE_MESSAGES.ERROR.UNAUTHORIZED,
       });
     }
 
     const resourceUserId = req.params.userId || req.params.id;
     const currentUserId = req.user.id.toString();
-    
+
     // Allow if user is admin or accessing their own resource
-    if (req.user.role === USER_ROLES.ADMIN || resourceUserId === currentUserId) {
+    if (
+      req.user.role === USER_ROLES.ADMIN ||
+      resourceUserId === currentUserId
+    ) {
       return next();
     }
 
-    logger.warn(`Ownership access denied for user ${req.user.email} trying to access resource for user ${resourceUserId}`);
-    
+    logger.warn(
+      `Ownership access denied for user ${req.user.email} trying to access resource for user ${resourceUserId}`
+    );
+
     return res.status(HTTP_STATUS.FORBIDDEN).json({
       success: false,
-      message: 'Access denied. You can only access your own resources.'
+      message: "Access denied. You can only access your own resources.",
     });
-
   } catch (error) {
-    logger.error('Ownership authorization error:', error);
+    logger.error("Ownership authorization error:", error);
     return res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
       success: false,
-      message: RESPONSE_MESSAGES.ERROR.SERVER_ERROR
+      message: RESPONSE_MESSAGES.ERROR.SERVER_ERROR,
     });
   }
 };
@@ -93,7 +105,7 @@ const requireDepartmentAccessOrAdmin = (req, res, next) => {
     if (!req.user) {
       return res.status(HTTP_STATUS.UNAUTHORIZED).json({
         success: false,
-        message: RESPONSE_MESSAGES.ERROR.UNAUTHORIZED
+        message: RESPONSE_MESSAGES.ERROR.UNAUTHORIZED,
       });
     }
 
@@ -116,14 +128,13 @@ const requireDepartmentAccessOrAdmin = (req, res, next) => {
 
     return res.status(HTTP_STATUS.FORBIDDEN).json({
       success: false,
-      message: RESPONSE_MESSAGES.ERROR.FORBIDDEN
+      message: RESPONSE_MESSAGES.ERROR.FORBIDDEN,
     });
-
   } catch (error) {
-    logger.error('Department authorization error:', error);
+    logger.error("Department authorization error:", error);
     return res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
       success: false,
-      message: RESPONSE_MESSAGES.ERROR.SERVER_ERROR
+      message: RESPONSE_MESSAGES.ERROR.SERVER_ERROR,
     });
   }
 };
@@ -133,5 +144,5 @@ module.exports = {
   requireAdmin,
   requireStaffOrAdmin,
   requireOwnershipOrAdmin,
-  requireDepartmentAccessOrAdmin
+  requireDepartmentAccessOrAdmin,
 };

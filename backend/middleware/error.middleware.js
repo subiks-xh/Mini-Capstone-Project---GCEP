@@ -1,5 +1,5 @@
-const logger = require('../utils/logger');
-const { HTTP_STATUS, RESPONSE_MESSAGES } = require('../config/constants');
+const logger = require("../utils/logger");
+const { HTTP_STATUS, RESPONSE_MESSAGES } = require("../config/constants");
 
 /**
  * Global error handling middleware
@@ -10,21 +10,21 @@ const errorHandler = (err, req, res, next) => {
   error.message = err.message;
 
   // Log error details
-  logger.error('Error Handler:', {
+  logger.error("Error Handler:", {
     message: err.message,
     stack: err.stack,
     url: req.url,
     method: req.method,
     ip: req.ip,
-    userAgent: req.get('User-Agent')
+    userAgent: req.get("User-Agent"),
   });
 
   // Mongoose bad ObjectId
-  if (err.name === 'CastError') {
-    const message = 'Resource not found';
+  if (err.name === "CastError") {
+    const message = "Resource not found";
     error = {
       message,
-      statusCode: HTTP_STATUS.NOT_FOUND
+      statusCode: HTTP_STATUS.NOT_FOUND,
     };
   }
 
@@ -34,31 +34,33 @@ const errorHandler = (err, req, res, next) => {
     const message = `${field} already exists`;
     error = {
       message,
-      statusCode: HTTP_STATUS.CONFLICT
+      statusCode: HTTP_STATUS.CONFLICT,
     };
   }
 
   // Mongoose validation error
-  if (err.name === 'ValidationError') {
-    const message = Object.values(err.errors).map(val => val.message).join(', ');
+  if (err.name === "ValidationError") {
+    const message = Object.values(err.errors)
+      .map((val) => val.message)
+      .join(", ");
     error = {
       message,
-      statusCode: HTTP_STATUS.BAD_REQUEST
+      statusCode: HTTP_STATUS.BAD_REQUEST,
     };
   }
 
   // JWT errors
-  if (err.name === 'JsonWebTokenError') {
+  if (err.name === "JsonWebTokenError") {
     error = {
       message: RESPONSE_MESSAGES.ERROR.INVALID_TOKEN,
-      statusCode: HTTP_STATUS.UNAUTHORIZED
+      statusCode: HTTP_STATUS.UNAUTHORIZED,
     };
   }
 
-  if (err.name === 'TokenExpiredError') {
+  if (err.name === "TokenExpiredError") {
     error = {
       message: RESPONSE_MESSAGES.ERROR.EXPIRED_TOKEN,
-      statusCode: HTTP_STATUS.UNAUTHORIZED
+      statusCode: HTTP_STATUS.UNAUTHORIZED,
     };
   }
 
@@ -66,14 +68,14 @@ const errorHandler = (err, req, res, next) => {
   if (err.isOperational) {
     error = {
       message: err.message,
-      statusCode: err.statusCode || HTTP_STATUS.BAD_REQUEST
+      statusCode: err.statusCode || HTTP_STATUS.BAD_REQUEST,
     };
   }
 
   res.status(error.statusCode || HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
     success: false,
     message: error.message || RESPONSE_MESSAGES.ERROR.SERVER_ERROR,
-    ...(process.env.NODE_ENV === 'development' && { stack: err.stack })
+    ...(process.env.NODE_ENV === "development" && { stack: err.stack }),
   });
 };
 
@@ -110,5 +112,5 @@ module.exports = {
   errorHandler,
   notFound,
   asyncHandler,
-  AppError
+  AppError,
 };

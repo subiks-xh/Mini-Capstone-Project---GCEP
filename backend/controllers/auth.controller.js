@@ -1,8 +1,16 @@
-const User = require('../models/User');
-const { generateToken, setTokenCookie, clearTokenCookie } = require('../config/auth');
-const { HTTP_STATUS, RESPONSE_MESSAGES, USER_ROLES } = require('../config/constants');
-const { asyncHandler, AppError } = require('../middleware/error.middleware');
-const logger = require('../utils/logger');
+const User = require("../models/User");
+const {
+  generateToken,
+  setTokenCookie,
+  clearTokenCookie,
+} = require("../config/auth");
+const {
+  HTTP_STATUS,
+  RESPONSE_MESSAGES,
+  USER_ROLES,
+} = require("../config/constants");
+const { asyncHandler, AppError } = require("../middleware/error.middleware");
+const logger = require("../utils/logger");
 
 /**
  * @desc    Register new user
@@ -15,17 +23,26 @@ const register = asyncHandler(async (req, res) => {
   // Check if user already exists
   const existingUser = await User.findOne({ email });
   if (existingUser) {
-    throw new AppError(RESPONSE_MESSAGES.ERROR.USER_EXISTS, HTTP_STATUS.CONFLICT);
+    throw new AppError(
+      RESPONSE_MESSAGES.ERROR.USER_EXISTS,
+      HTTP_STATUS.CONFLICT
+    );
   }
 
   // Validate staff requirements
   if (role === USER_ROLES.STAFF && !department) {
-    throw new AppError('Department is required for staff members', HTTP_STATUS.BAD_REQUEST);
+    throw new AppError(
+      "Department is required for staff members",
+      HTTP_STATUS.BAD_REQUEST
+    );
   }
 
   // Only admin can create admin accounts
   if (role === USER_ROLES.ADMIN) {
-    throw new AppError('Admin accounts can only be created by existing admins', HTTP_STATUS.FORBIDDEN);
+    throw new AppError(
+      "Admin accounts can only be created by existing admins",
+      HTTP_STATUS.FORBIDDEN
+    );
   }
 
   try {
@@ -35,7 +52,7 @@ const register = asyncHandler(async (req, res) => {
       email: email.toLowerCase().trim(),
       password,
       role: role || USER_ROLES.USER,
-      department: role === USER_ROLES.STAFF ? department : undefined
+      department: role === USER_ROLES.STAFF ? department : undefined,
     });
 
     // Generate JWT token
@@ -58,16 +75,15 @@ const register = asyncHandler(async (req, res) => {
         email: user.email,
         role: user.role,
         department: user.department,
-        createdAt: user.createdAt
+        createdAt: user.createdAt,
       },
-      token // Also send in response for mobile clients
+      token, // Also send in response for mobile clients
     });
-
   } catch (error) {
     // Handle mongoose validation errors
-    if (error.name === 'ValidationError') {
-      const messages = Object.values(error.errors).map(err => err.message);
-      throw new AppError(messages.join(', '), HTTP_STATUS.BAD_REQUEST);
+    if (error.name === "ValidationError") {
+      const messages = Object.values(error.errors).map((err) => err.message);
+      throw new AppError(messages.join(", "), HTTP_STATUS.BAD_REQUEST);
     }
     throw error;
   }
@@ -83,22 +99,33 @@ const login = asyncHandler(async (req, res) => {
 
   try {
     // Find user and include password for verification
-    const user = await User.findOne({ email: email.toLowerCase().trim() }).select('+password');
+    const user = await User.findOne({
+      email: email.toLowerCase().trim(),
+    }).select("+password");
 
     if (!user) {
-      throw new AppError(RESPONSE_MESSAGES.ERROR.INVALID_CREDENTIALS, HTTP_STATUS.UNAUTHORIZED);
+      throw new AppError(
+        RESPONSE_MESSAGES.ERROR.INVALID_CREDENTIALS,
+        HTTP_STATUS.UNAUTHORIZED
+      );
     }
 
     // Check if user is active
     if (!user.isActive) {
-      throw new AppError('Account has been deactivated. Please contact administrator.', HTTP_STATUS.UNAUTHORIZED);
+      throw new AppError(
+        "Account has been deactivated. Please contact administrator.",
+        HTTP_STATUS.UNAUTHORIZED
+      );
     }
 
     // Verify password
     const isPasswordMatch = await user.comparePassword(password);
     if (!isPasswordMatch) {
       logger.warn(`Failed login attempt for email: ${email}`);
-      throw new AppError(RESPONSE_MESSAGES.ERROR.INVALID_CREDENTIALS, HTTP_STATUS.UNAUTHORIZED);
+      throw new AppError(
+        RESPONSE_MESSAGES.ERROR.INVALID_CREDENTIALS,
+        HTTP_STATUS.UNAUTHORIZED
+      );
     }
 
     // Generate JWT token
@@ -121,11 +148,10 @@ const login = asyncHandler(async (req, res) => {
         email: user.email,
         role: user.role,
         department: user.department,
-        lastLogin: user.lastLogin
+        lastLogin: user.lastLogin,
       },
-      token // Also send in response for mobile clients
+      token, // Also send in response for mobile clients
     });
-
   } catch (error) {
     throw error;
   }
@@ -140,11 +166,11 @@ const logout = asyncHandler(async (req, res) => {
   // Clear the token cookie
   clearTokenCookie(res);
 
-  logger.info(`User logged out: ${req.user?.email || 'Unknown'}`);
+  logger.info(`User logged out: ${req.user?.email || "Unknown"}`);
 
   res.status(HTTP_STATUS.OK).json({
     success: true,
-    message: RESPONSE_MESSAGES.SUCCESS.USER_LOGOUT
+    message: RESPONSE_MESSAGES.SUCCESS.USER_LOGOUT,
   });
 });
 
@@ -158,7 +184,10 @@ const getMe = asyncHandler(async (req, res) => {
   const user = await User.findById(req.user.id);
 
   if (!user) {
-    throw new AppError(RESPONSE_MESSAGES.ERROR.USER_NOT_FOUND, HTTP_STATUS.NOT_FOUND);
+    throw new AppError(
+      RESPONSE_MESSAGES.ERROR.USER_NOT_FOUND,
+      HTTP_STATUS.NOT_FOUND
+    );
   }
 
   res.status(HTTP_STATUS.OK).json({
@@ -171,8 +200,8 @@ const getMe = asyncHandler(async (req, res) => {
       department: user.department,
       createdAt: user.createdAt,
       lastLogin: user.lastLogin,
-      isActive: user.isActive
-    }
+      isActive: user.isActive,
+    },
   });
 });
 
@@ -185,24 +214,36 @@ const updatePassword = asyncHandler(async (req, res) => {
   const { currentPassword, newPassword } = req.body;
 
   if (!currentPassword || !newPassword) {
-    throw new AppError('Current password and new password are required', HTTP_STATUS.BAD_REQUEST);
+    throw new AppError(
+      "Current password and new password are required",
+      HTTP_STATUS.BAD_REQUEST
+    );
   }
 
   if (newPassword.length < 6) {
-    throw new AppError('New password must be at least 6 characters long', HTTP_STATUS.BAD_REQUEST);
+    throw new AppError(
+      "New password must be at least 6 characters long",
+      HTTP_STATUS.BAD_REQUEST
+    );
   }
 
   // Get user with password
-  const user = await User.findById(req.user.id).select('+password');
+  const user = await User.findById(req.user.id).select("+password");
 
   if (!user) {
-    throw new AppError(RESPONSE_MESSAGES.ERROR.USER_NOT_FOUND, HTTP_STATUS.NOT_FOUND);
+    throw new AppError(
+      RESPONSE_MESSAGES.ERROR.USER_NOT_FOUND,
+      HTTP_STATUS.NOT_FOUND
+    );
   }
 
   // Check current password
   const isCurrentPasswordCorrect = await user.comparePassword(currentPassword);
   if (!isCurrentPasswordCorrect) {
-    throw new AppError('Current password is incorrect', HTTP_STATUS.BAD_REQUEST);
+    throw new AppError(
+      "Current password is incorrect",
+      HTTP_STATUS.BAD_REQUEST
+    );
   }
 
   // Update password
@@ -213,7 +254,7 @@ const updatePassword = asyncHandler(async (req, res) => {
 
   res.status(HTTP_STATUS.OK).json({
     success: true,
-    message: 'Password updated successfully'
+    message: "Password updated successfully",
   });
 });
 
@@ -226,7 +267,10 @@ const refreshToken = asyncHandler(async (req, res) => {
   const user = await User.findById(req.user.id);
 
   if (!user || !user.isActive) {
-    throw new AppError(RESPONSE_MESSAGES.ERROR.USER_NOT_FOUND, HTTP_STATUS.NOT_FOUND);
+    throw new AppError(
+      RESPONSE_MESSAGES.ERROR.USER_NOT_FOUND,
+      HTTP_STATUS.NOT_FOUND
+    );
   }
 
   // Generate new token
@@ -237,8 +281,8 @@ const refreshToken = asyncHandler(async (req, res) => {
 
   res.status(HTTP_STATUS.OK).json({
     success: true,
-    message: 'Token refreshed successfully',
-    token
+    message: "Token refreshed successfully",
+    token,
   });
 });
 
@@ -248,5 +292,5 @@ module.exports = {
   logout,
   getMe,
   updatePassword,
-  refreshToken
+  refreshToken,
 };
