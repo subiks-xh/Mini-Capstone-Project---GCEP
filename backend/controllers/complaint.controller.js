@@ -1,15 +1,15 @@
-const Complaint = require('../models/Complaint');
-const Category = require('../models/Category');
-const User = require('../models/User');
-const Feedback = require('../models/Feedback');
+const Complaint = require("../models/Complaint");
+const Category = require("../models/Category");
+const User = require("../models/User");
+const Feedback = require("../models/Feedback");
 const {
   HTTP_STATUS,
   RESPONSE_MESSAGES,
   USER_ROLES,
-  COMPLAINT_STATUS
-} = require('../config/constants');
-const { asyncHandler, AppError } = require('../middleware/error.middleware');
-const logger = require('../utils/logger');
+  COMPLAINT_STATUS,
+} = require("../config/constants");
+const { asyncHandler, AppError } = require("../middleware/error.middleware");
+const logger = require("../utils/logger");
 
 /**
  * @desc    Create new complaint
@@ -22,7 +22,10 @@ const createComplaint = asyncHandler(async (req, res) => {
   // Verify category exists and is active
   const categoryDoc = await Category.findOne({ _id: category, isActive: true });
   if (!categoryDoc) {
-    throw new AppError('Category not found or inactive', HTTP_STATUS.BAD_REQUEST);
+    throw new AppError(
+      "Category not found or inactive",
+      HTTP_STATUS.BAD_REQUEST
+    );
   }
 
   try {
@@ -30,27 +33,29 @@ const createComplaint = asyncHandler(async (req, res) => {
       title: title.trim(),
       description: description.trim(),
       category,
-      priority: priority || 'medium',
-      user: req.user.id
+      priority: priority || "medium",
+      user: req.user.id,
     });
 
     // Populate the complaint with related data
     await complaint.populate([
-      { path: 'category', select: 'name department resolutionTimeHours' },
-      { path: 'user', select: 'name email' }
+      { path: "category", select: "name department resolutionTimeHours" },
+      { path: "user", select: "name email" },
     ]);
 
-    logger.info(`New complaint created: ${complaint._id} by user: ${req.user.email}`);
+    logger.info(
+      `New complaint created: ${complaint._id} by user: ${req.user.email}`
+    );
 
     res.status(HTTP_STATUS.CREATED).json({
       success: true,
       message: RESPONSE_MESSAGES.SUCCESS.COMPLAINT_CREATED,
-      complaint
+      complaint,
     });
   } catch (error) {
-    if (error.name === 'ValidationError') {
-      const messages = Object.values(error.errors).map(err => err.message);
-      throw new AppError(messages.join(', '), HTTP_STATUS.BAD_REQUEST);
+    if (error.name === "ValidationError") {
+      const messages = Object.values(error.errors).map((err) => err.message);
+      throw new AppError(messages.join(", "), HTTP_STATUS.BAD_REQUEST);
     }
     throw error;
   }
@@ -71,10 +76,10 @@ const getComplaints = asyncHandler(async (req, res) => {
     assignedTo,
     user,
     search,
-    sortBy = 'createdAt',
-    sortOrder = 'desc',
+    sortBy = "createdAt",
+    sortOrder = "desc",
     startDate,
-    endDate
+    endDate,
   } = req.query;
 
   // Build filter based on user role
@@ -86,14 +91,14 @@ const getComplaints = asyncHandler(async (req, res) => {
     filter.user = req.user.id;
   } else if (req.user.role === USER_ROLES.STAFF) {
     // Staff can see complaints assigned to them or from their department
-    const staffCategories = await Category.find({ 
-      department: req.user.department, 
-      isActive: true 
-    }).select('_id');
-    
+    const staffCategories = await Category.find({
+      department: req.user.department,
+      isActive: true,
+    }).select("_id");
+
     filter.$or = [
       { assignedTo: req.user.id },
-      { category: { $in: staffCategories.map(cat => cat._id) } }
+      { category: { $in: staffCategories.map((cat) => cat._id) } },
     ];
   }
   // Admin can see all complaints (no additional filter)
@@ -109,35 +114,35 @@ const getComplaints = asyncHandler(async (req, res) => {
   if (startDate && endDate) {
     filter.createdAt = {
       $gte: new Date(startDate),
-      $lte: new Date(endDate)
+      $lte: new Date(endDate),
     };
   }
 
   // Search filter
   if (search) {
     filter.$or = [
-      { title: { $regex: search, $options: 'i' } },
-      { description: { $regex: search, $options: 'i' } }
+      { title: { $regex: search, $options: "i" } },
+      { description: { $regex: search, $options: "i" } },
     ];
   }
 
   // Pagination
   const skip = (page - 1) * limit;
   const sortOptions = {};
-  sortOptions[sortBy] = sortOrder === 'desc' ? -1 : 1;
+  sortOptions[sortBy] = sortOrder === "desc" ? -1 : 1;
 
   try {
     const [complaints, total] = await Promise.all([
       Complaint.find(filter)
-        .populate('category', 'name department color')
-        .populate('user', 'name email')
-        .populate('assignedTo', 'name email department')
-        .populate('feedback', 'rating comments')
+        .populate("category", "name department color")
+        .populate("user", "name email")
+        .populate("assignedTo", "name email department")
+        .populate("feedback", "rating comments")
         .sort(sortOptions)
         .skip(skip)
         .limit(parseInt(limit)),
-      
-      Complaint.countDocuments(filter)
+
+      Complaint.countDocuments(filter),
     ]);
 
     res.status(HTTP_STATUS.OK).json({
@@ -149,8 +154,8 @@ const getComplaints = asyncHandler(async (req, res) => {
         totalComplaints: total,
         limit: parseInt(limit),
         hasNext: page * limit < total,
-        hasPrev: page > 1
-      }
+        hasPrev: page > 1,
+      },
     });
   } catch (error) {
     throw error;
@@ -166,11 +171,11 @@ const getComplaintById = asyncHandler(async (req, res) => {
   const complaintId = req.params.id;
 
   const complaint = await Complaint.findById(complaintId)
-    .populate('category', 'name department resolutionTimeHours color')
-    .populate('user', 'name email role')
-    .populate('assignedTo', 'name email department')
-    .populate('feedback')
-    .populate('statusHistory.updatedBy', 'name email role');
+    .populate("category", "name department resolutionTimeHours color")
+    .populate("user", "name email role")
+    .populate("assignedTo", "name email department")
+    .populate("feedback")
+    .populate("statusHistory.updatedBy", "name email role");
 
   if (!complaint) {
     throw new AppError(
@@ -180,7 +185,10 @@ const getComplaintById = asyncHandler(async (req, res) => {
   }
 
   // Check access permissions
-  if (req.user.role === USER_ROLES.USER && complaint.user._id.toString() !== req.user.id) {
+  if (
+    req.user.role === USER_ROLES.USER &&
+    complaint.user._id.toString() !== req.user.id
+  ) {
     throw new AppError(
       RESPONSE_MESSAGES.ERROR.FORBIDDEN,
       HTTP_STATUS.FORBIDDEN
@@ -190,9 +198,11 @@ const getComplaintById = asyncHandler(async (req, res) => {
   if (req.user.role === USER_ROLES.STAFF) {
     // Staff can only view complaints assigned to them or from their department
     const category = await Category.findById(complaint.category._id);
-    const hasAccess = complaint.assignedTo && complaint.assignedTo._id.toString() === req.user.id ||
-                     category && category.department === req.user.department;
-    
+    const hasAccess =
+      (complaint.assignedTo &&
+        complaint.assignedTo._id.toString() === req.user.id) ||
+      (category && category.department === req.user.department);
+
     if (!hasAccess) {
       throw new AppError(
         RESPONSE_MESSAGES.ERROR.FORBIDDEN,
@@ -203,7 +213,7 @@ const getComplaintById = asyncHandler(async (req, res) => {
 
   res.status(HTTP_STATUS.OK).json({
     success: true,
-    complaint
+    complaint,
   });
 });
 
@@ -226,8 +236,10 @@ const updateComplaint = asyncHandler(async (req, res) => {
 
   // Check permissions
   const isOwner = complaint.user.toString() === req.user.id;
-  const isStaffOrAdmin = [USER_ROLES.STAFF, USER_ROLES.ADMIN].includes(req.user.role);
-  
+  const isStaffOrAdmin = [USER_ROLES.STAFF, USER_ROLES.ADMIN].includes(
+    req.user.role
+  );
+
   if (!isOwner && !isStaffOrAdmin) {
     throw new AppError(
       RESPONSE_MESSAGES.ERROR.FORBIDDEN,
@@ -236,18 +248,29 @@ const updateComplaint = asyncHandler(async (req, res) => {
   }
 
   // Users can only update their own complaints if not resolved/closed
-  if (isOwner && [COMPLAINT_STATUS.RESOLVED, COMPLAINT_STATUS.CLOSED].includes(complaint.status)) {
+  if (
+    isOwner &&
+    [COMPLAINT_STATUS.RESOLVED, COMPLAINT_STATUS.CLOSED].includes(
+      complaint.status
+    )
+  ) {
     throw new AppError(
-      'Cannot update resolved or closed complaint',
+      "Cannot update resolved or closed complaint",
       HTTP_STATUS.BAD_REQUEST
     );
   }
 
   // Verify category if provided
   if (category && category !== complaint.category.toString()) {
-    const categoryDoc = await Category.findOne({ _id: category, isActive: true });
+    const categoryDoc = await Category.findOne({
+      _id: category,
+      isActive: true,
+    });
     if (!categoryDoc) {
-      throw new AppError('Category not found or inactive', HTTP_STATUS.BAD_REQUEST);
+      throw new AppError(
+        "Category not found or inactive",
+        HTTP_STATUS.BAD_REQUEST
+      );
     }
   }
 
@@ -263,9 +286,9 @@ const updateComplaint = asyncHandler(async (req, res) => {
       updateData,
       { new: true, runValidators: true }
     ).populate([
-      { path: 'category', select: 'name department color' },
-      { path: 'user', select: 'name email' },
-      { path: 'assignedTo', select: 'name email department' }
+      { path: "category", select: "name department color" },
+      { path: "user", select: "name email" },
+      { path: "assignedTo", select: "name email department" },
     ]);
 
     logger.info(`Complaint updated: ${complaintId} by user: ${req.user.email}`);
@@ -273,12 +296,12 @@ const updateComplaint = asyncHandler(async (req, res) => {
     res.status(HTTP_STATUS.OK).json({
       success: true,
       message: RESPONSE_MESSAGES.SUCCESS.COMPLAINT_UPDATED,
-      complaint: updatedComplaint
+      complaint: updatedComplaint,
     });
   } catch (error) {
-    if (error.name === 'ValidationError') {
-      const messages = Object.values(error.errors).map(err => err.message);
-      throw new AppError(messages.join(', '), HTTP_STATUS.BAD_REQUEST);
+    if (error.name === "ValidationError") {
+      const messages = Object.values(error.errors).map((err) => err.message);
+      throw new AppError(messages.join(", "), HTTP_STATUS.BAD_REQUEST);
     }
     throw error;
   }
@@ -303,7 +326,7 @@ const deleteComplaint = asyncHandler(async (req, res) => {
   // Only complaint owner or admin can delete
   const isOwner = complaint.user.toString() === req.user.id;
   const isAdmin = req.user.role === USER_ROLES.ADMIN;
-  
+
   if (!isOwner && !isAdmin) {
     throw new AppError(
       RESPONSE_MESSAGES.ERROR.FORBIDDEN,
@@ -314,7 +337,7 @@ const deleteComplaint = asyncHandler(async (req, res) => {
   // Cannot delete resolved complaints with feedback
   if (complaint.status === COMPLAINT_STATUS.CLOSED && complaint.feedback) {
     throw new AppError(
-      'Cannot delete complaint with feedback',
+      "Cannot delete complaint with feedback",
       HTTP_STATUS.BAD_REQUEST
     );
   }
@@ -330,7 +353,7 @@ const deleteComplaint = asyncHandler(async (req, res) => {
 
   res.status(HTTP_STATUS.OK).json({
     success: true,
-    message: 'Complaint deleted successfully'
+    message: "Complaint deleted successfully",
   });
 });
 
@@ -343,7 +366,7 @@ const updateComplaintStatus = asyncHandler(async (req, res) => {
   const complaintId = req.params.id;
   const { status, remarks } = req.body;
 
-  const complaint = await Complaint.findById(complaintId).populate('category');
+  const complaint = await Complaint.findById(complaintId).populate("category");
   if (!complaint) {
     throw new AppError(
       RESPONSE_MESSAGES.ERROR.COMPLAINT_NOT_FOUND,
@@ -361,9 +384,11 @@ const updateComplaintStatus = asyncHandler(async (req, res) => {
 
   // Staff can only update complaints from their department or assigned to them
   if (req.user.role === USER_ROLES.STAFF) {
-    const hasAccess = complaint.assignedTo && complaint.assignedTo.toString() === req.user.id ||
-                     complaint.category.department === req.user.department;
-    
+    const hasAccess =
+      (complaint.assignedTo &&
+        complaint.assignedTo.toString() === req.user.id) ||
+      complaint.category.department === req.user.department;
+
     if (!hasAccess) {
       throw new AppError(
         RESPONSE_MESSAGES.ERROR.FORBIDDEN,
@@ -374,22 +399,24 @@ const updateComplaintStatus = asyncHandler(async (req, res) => {
 
   try {
     await complaint.updateStatus(status, req.user.id, remarks);
-    
+
     await complaint.populate([
-      { path: 'user', select: 'name email' },
-      { path: 'assignedTo', select: 'name email department' },
-      { path: 'statusHistory.updatedBy', select: 'name email role' }
+      { path: "user", select: "name email" },
+      { path: "assignedTo", select: "name email department" },
+      { path: "statusHistory.updatedBy", select: "name email role" },
     ]);
 
-    logger.info(`Complaint status updated: ${complaintId} to ${status} by user: ${req.user.email}`);
+    logger.info(
+      `Complaint status updated: ${complaintId} to ${status} by user: ${req.user.email}`
+    );
 
     res.status(HTTP_STATUS.OK).json({
       success: true,
       message: RESPONSE_MESSAGES.SUCCESS.STATUS_UPDATED,
-      complaint
+      complaint,
     });
   } catch (error) {
-    if (error.message.includes('Status is already')) {
+    if (error.message.includes("Status is already")) {
       throw new AppError(error.message, HTTP_STATUS.BAD_REQUEST);
     }
     throw error;
@@ -405,7 +432,7 @@ const assignComplaint = asyncHandler(async (req, res) => {
   const complaintId = req.params.id;
   const { assignedTo } = req.body;
 
-  const complaint = await Complaint.findById(complaintId).populate('category');
+  const complaint = await Complaint.findById(complaintId).populate("category");
   if (!complaint) {
     throw new AppError(
       RESPONSE_MESSAGES.ERROR.COMPLAINT_NOT_FOUND,
@@ -417,38 +444,43 @@ const assignComplaint = asyncHandler(async (req, res) => {
   const staffMember = await User.findOne({
     _id: assignedTo,
     role: USER_ROLES.STAFF,
-    isActive: true
+    isActive: true,
   });
 
   if (!staffMember) {
-    throw new AppError('Staff member not found or inactive', HTTP_STATUS.BAD_REQUEST);
+    throw new AppError(
+      "Staff member not found or inactive",
+      HTTP_STATUS.BAD_REQUEST
+    );
   }
 
   if (staffMember.department !== complaint.category.department) {
     throw new AppError(
-      'Staff member must be from the same department as the complaint category',
+      "Staff member must be from the same department as the complaint category",
       HTTP_STATUS.BAD_REQUEST
     );
   }
 
   try {
     await complaint.assignTo(assignedTo, req.user.id);
-    
+
     await complaint.populate([
-      { path: 'user', select: 'name email' },
-      { path: 'assignedTo', select: 'name email department' },
-      { path: 'statusHistory.updatedBy', select: 'name email role' }
+      { path: "user", select: "name email" },
+      { path: "assignedTo", select: "name email department" },
+      { path: "statusHistory.updatedBy", select: "name email role" },
     ]);
 
-    logger.info(`Complaint assigned: ${complaintId} to ${staffMember.email} by admin: ${req.user.email}`);
+    logger.info(
+      `Complaint assigned: ${complaintId} to ${staffMember.email} by admin: ${req.user.email}`
+    );
 
     res.status(HTTP_STATUS.OK).json({
       success: true,
       message: RESPONSE_MESSAGES.SUCCESS.COMPLAINT_ASSIGNED,
-      complaint
+      complaint,
     });
   } catch (error) {
-    if (error.message.includes('Cannot assign')) {
+    if (error.message.includes("Cannot assign")) {
       throw new AppError(error.message, HTTP_STATUS.BAD_REQUEST);
     }
     throw error;
@@ -462,75 +494,82 @@ const assignComplaint = asyncHandler(async (req, res) => {
  */
 const getComplaintAnalytics = asyncHandler(async (req, res) => {
   const { startDate, endDate } = req.query;
-  
+
   let dateFilter = {};
   if (startDate && endDate) {
     dateFilter = {
       createdAt: {
         $gte: new Date(startDate),
-        $lte: new Date(endDate)
-      }
+        $lte: new Date(endDate),
+      },
     };
   }
 
   // Role-based filtering for analytics
   let baseFilter = { ...dateFilter };
   if (req.user.role === USER_ROLES.STAFF) {
-    const staffCategories = await Category.find({ 
-      department: req.user.department, 
-      isActive: true 
-    }).select('_id');
-    
-    baseFilter.category = { $in: staffCategories.map(cat => cat._id) };
+    const staffCategories = await Category.find({
+      department: req.user.department,
+      isActive: true,
+    }).select("_id");
+
+    baseFilter.category = { $in: staffCategories.map((cat) => cat._id) };
   }
 
   try {
-    const [generalStats, statusDistribution, priorityDistribution, categoryStats] = await Promise.all([
+    const [
+      generalStats,
+      statusDistribution,
+      priorityDistribution,
+      categoryStats,
+    ] = await Promise.all([
       // General statistics
       Complaint.getAnalytics(dateFilter),
-      
+
       // Status distribution
       Complaint.aggregate([
         { $match: baseFilter },
-        { $group: { _id: '$status', count: { $sum: 1 } } },
-        { $sort: { count: -1 } }
+        { $group: { _id: "$status", count: { $sum: 1 } } },
+        { $sort: { count: -1 } },
       ]),
-      
+
       // Priority distribution
       Complaint.aggregate([
         { $match: baseFilter },
-        { $group: { _id: '$priority', count: { $sum: 1 } } },
-        { $sort: { count: -1 } }
+        { $group: { _id: "$priority", count: { $sum: 1 } } },
+        { $sort: { count: -1 } },
       ]),
-      
+
       // Category statistics
       Complaint.aggregate([
         { $match: baseFilter },
         {
           $lookup: {
-            from: 'categories',
-            localField: 'category',
-            foreignField: '_id',
-            as: 'categoryData'
-          }
+            from: "categories",
+            localField: "category",
+            foreignField: "_id",
+            as: "categoryData",
+          },
         },
-        { $unwind: '$categoryData' },
+        { $unwind: "$categoryData" },
         {
           $group: {
-            _id: '$categoryData._id',
-            categoryName: { $first: '$categoryData.name' },
-            department: { $first: '$categoryData.department' },
+            _id: "$categoryData._id",
+            categoryName: { $first: "$categoryData.name" },
+            department: { $first: "$categoryData.department" },
             count: { $sum: 1 },
             resolvedCount: {
-              $sum: { $cond: [{ $eq: ['$status', 'resolved'] }, 1, 0] }
+              $sum: { $cond: [{ $eq: ["$status", "resolved"] }, 1, 0] },
             },
             escalatedCount: {
-              $sum: { $cond: [{ $eq: ['$escalation.isEscalated', true] }, 1, 0] }
-            }
-          }
+              $sum: {
+                $cond: [{ $eq: ["$escalation.isEscalated", true] }, 1, 0],
+              },
+            },
+          },
         },
-        { $sort: { count: -1 } }
-      ])
+        { $sort: { count: -1 } },
+      ]),
     ]);
 
     res.status(HTTP_STATUS.OK).json({
@@ -541,12 +580,12 @@ const getComplaintAnalytics = asyncHandler(async (req, res) => {
           pendingComplaints: 0,
           resolvedComplaints: 0,
           escalatedComplaints: 0,
-          averageResolutionTime: 0
+          averageResolutionTime: 0,
         },
         statusDistribution,
         priorityDistribution,
-        categoryStats
-      }
+        categoryStats,
+      },
     });
   } catch (error) {
     throw error;
@@ -561,5 +600,5 @@ module.exports = {
   deleteComplaint,
   updateComplaintStatus,
   assignComplaint,
-  getComplaintAnalytics
+  getComplaintAnalytics,
 };

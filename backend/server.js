@@ -11,8 +11,13 @@ const logger = require("./utils/logger");
 const { errorHandler, notFound } = require("./middleware/error.middleware");
 
 // Routes
-const authRoutes = require("./routes/auth.routes");const complaintRoutes = require('./routes/complaint.routes');
-const adminRoutes = require('./routes/admin.routes');
+const authRoutes = require("./routes/auth.routes");
+const complaintRoutes = require("./routes/complaint.routes");
+const adminRoutes = require("./routes/admin.routes");
+const staffRoutes = require("./routes/staff.routes");
+
+// Services
+const BackgroundJobsService = require("./services/backgroundJobs.service");
 // Initialize Express app
 const app = express();
 
@@ -95,6 +100,7 @@ app.get("/api/health", (req, res) => {
 app.use("/api/auth", authRoutes);
 app.use("/api/complaints", complaintRoutes);
 app.use("/api/admin", adminRoutes);
+app.use("/api/staff", staffRoutes);
 
 // Welcome route
 app.get("/", (req, res) => {
@@ -140,6 +146,10 @@ process.on("uncaughtException", (err) => {
 // Graceful shutdown
 process.on("SIGTERM", () => {
   logger.info("SIGTERM received. Shutting down gracefully...");
+  
+  // Stop background jobs first
+  BackgroundJobsService.stopAll();
+  
   if (server) {
     server.close(() => {
       logger.info("Process terminated");
@@ -149,6 +159,10 @@ process.on("SIGTERM", () => {
 
 process.on("SIGINT", () => {
   logger.info("SIGINT received. Shutting down gracefully...");
+  
+  // Stop background jobs first
+  BackgroundJobsService.stopAll();
+  
   if (server) {
     server.close(() => {
       logger.info("Process terminated");
@@ -160,6 +174,14 @@ const PORT = process.env.PORT || 5000;
 
 const server = app.listen(PORT, () => {
   logger.info(`Server running in ${process.env.NODE_ENV} mode on port ${PORT}`);
+
+  // Start background jobs after server is ready
+  try {
+    BackgroundJobsService.startAll();
+    logger.info("Background jobs initialized successfully");
+  } catch (error) {
+    logger.error("Failed to start background jobs:", error);
+  }
 
   // Log available routes in development
   if (process.env.NODE_ENV === "development") {
@@ -176,6 +198,9 @@ const server = app.listen(PORT, () => {
     logger.info(`- GET  http://localhost:${PORT}/api/admin/dashboard`);
     logger.info(`- GET  http://localhost:${PORT}/api/admin/categories`);
     logger.info(`- GET  http://localhost:${PORT}/api/admin/users`);
+    logger.info(`- GET  http://localhost:${PORT}/api/staff/dashboard`);
+    logger.info(`- GET  http://localhost:${PORT}/api/staff/available/:categoryId`);
+    logger.info(`- POST http://localhost:${PORT}/api/staff/assign`);
   }
 });
 

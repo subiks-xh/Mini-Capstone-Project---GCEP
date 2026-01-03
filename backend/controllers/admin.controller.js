@@ -1,14 +1,14 @@
-const Category = require('../models/Category');
-const Complaint = require('../models/Complaint');
-const User = require('../models/User');
-const Feedback = require('../models/Feedback');
+const Category = require("../models/Category");
+const Complaint = require("../models/Complaint");
+const User = require("../models/User");
+const Feedback = require("../models/Feedback");
 const {
   HTTP_STATUS,
   RESPONSE_MESSAGES,
-  USER_ROLES
-} = require('../config/constants');
-const { asyncHandler, AppError } = require('../middleware/error.middleware');
-const logger = require('../utils/logger');
+  USER_ROLES,
+} = require("../config/constants");
+const { asyncHandler, AppError } = require("../middleware/error.middleware");
+const logger = require("../utils/logger");
 
 /**
  * @desc    Create new category
@@ -23,7 +23,7 @@ const createCategory = asyncHandler(async (req, res) => {
     resolutionTimeHours,
     color,
     icon,
-    keywords
+    keywords,
   } = req.body;
 
   try {
@@ -34,24 +34,26 @@ const createCategory = asyncHandler(async (req, res) => {
       resolutionTimeHours,
       color,
       icon,
-      keywords: keywords ? keywords.map(k => k.trim().toLowerCase()) : [],
-      createdBy: req.user.id
+      keywords: keywords ? keywords.map((k) => k.trim().toLowerCase()) : [],
+      createdBy: req.user.id,
     });
 
-    logger.info(`New category created: ${category.name} by admin: ${req.user.email}`);
+    logger.info(
+      `New category created: ${category.name} by admin: ${req.user.email}`
+    );
 
     res.status(HTTP_STATUS.CREATED).json({
       success: true,
-      message: 'Category created successfully',
-      category
+      message: "Category created successfully",
+      category,
     });
   } catch (error) {
     if (error.code === 11000) {
-      throw new AppError('Category name already exists', HTTP_STATUS.CONFLICT);
+      throw new AppError("Category name already exists", HTTP_STATUS.CONFLICT);
     }
-    if (error.name === 'ValidationError') {
-      const messages = Object.values(error.errors).map(err => err.message);
-      throw new AppError(messages.join(', '), HTTP_STATUS.BAD_REQUEST);
+    if (error.name === "ValidationError") {
+      const messages = Object.values(error.errors).map((err) => err.message);
+      throw new AppError(messages.join(", "), HTTP_STATUS.BAD_REQUEST);
     }
     throw error;
   }
@@ -63,23 +65,17 @@ const createCategory = asyncHandler(async (req, res) => {
  * @access  Private (Staff/Admin)
  */
 const getCategories = asyncHandler(async (req, res) => {
-  const {
-    page = 1,
-    limit = 20,
-    department,
-    isActive,
-    search
-  } = req.query;
+  const { page = 1, limit = 20, department, isActive, search } = req.query;
 
   let filter = {};
 
   // Apply filters
   if (department) filter.department = department;
-  if (isActive !== undefined) filter.isActive = isActive === 'true';
+  if (isActive !== undefined) filter.isActive = isActive === "true";
   if (search) {
     filter.$or = [
-      { name: { $regex: search, $options: 'i' } },
-      { description: { $regex: search, $options: 'i' } }
+      { name: { $regex: search, $options: "i" } },
+      { description: { $regex: search, $options: "i" } },
     ];
   }
 
@@ -93,27 +89,27 @@ const getCategories = asyncHandler(async (req, res) => {
   try {
     const [categories, total] = await Promise.all([
       Category.find(filter)
-        .populate('createdBy', 'name email')
-        .populate('updatedBy', 'name email')
+        .populate("createdBy", "name email")
+        .populate("updatedBy", "name email")
         .sort({ priority: 1, name: 1 })
         .skip(skip)
         .limit(parseInt(limit)),
-      
-      Category.countDocuments(filter)
+
+      Category.countDocuments(filter),
     ]);
 
     // Get complaint counts for each category
     const categoriesWithStats = await Promise.all(
       categories.map(async (category) => {
         const complaintCount = await category.getComplaintCount();
-        const resolvedCount = await category.getComplaintCount('resolved');
+        const resolvedCount = await category.getComplaintCount("resolved");
         const avgResolutionTime = await category.getAverageResolutionTime();
-        
+
         return {
           ...category.toObject(),
           complaintCount,
           resolvedCount,
-          averageResolutionTime: avgResolutionTime
+          averageResolutionTime: avgResolutionTime,
         };
       })
     );
@@ -127,8 +123,8 @@ const getCategories = asyncHandler(async (req, res) => {
         totalCategories: total,
         limit: parseInt(limit),
         hasNext: page * limit < total,
-        hasPrev: page > 1
-      }
+        hasPrev: page > 1,
+      },
     });
   } catch (error) {
     throw error;
@@ -142,15 +138,18 @@ const getCategories = asyncHandler(async (req, res) => {
  */
 const getCategoryById = asyncHandler(async (req, res) => {
   const category = await Category.findById(req.params.id)
-    .populate('createdBy', 'name email')
-    .populate('updatedBy', 'name email');
+    .populate("createdBy", "name email")
+    .populate("updatedBy", "name email");
 
   if (!category) {
-    throw new AppError('Category not found', HTTP_STATUS.NOT_FOUND);
+    throw new AppError("Category not found", HTTP_STATUS.NOT_FOUND);
   }
 
   // Role-based access control
-  if (req.user.role === USER_ROLES.STAFF && category.department !== req.user.department) {
+  if (
+    req.user.role === USER_ROLES.STAFF &&
+    category.department !== req.user.department
+  ) {
     throw new AppError(
       RESPONSE_MESSAGES.ERROR.FORBIDDEN,
       HTTP_STATUS.FORBIDDEN
@@ -159,7 +158,7 @@ const getCategoryById = asyncHandler(async (req, res) => {
 
   // Get additional stats
   const complaintCount = await category.getComplaintCount();
-  const resolvedCount = await category.getComplaintCount('resolved');
+  const resolvedCount = await category.getComplaintCount("resolved");
   const avgResolutionTime = await category.getAverageResolutionTime();
 
   res.status(HTTP_STATUS.OK).json({
@@ -168,8 +167,8 @@ const getCategoryById = asyncHandler(async (req, res) => {
       ...category.toObject(),
       complaintCount,
       resolvedCount,
-      averageResolutionTime
-    }
+      averageResolutionTime,
+    },
   });
 });
 
@@ -180,16 +179,18 @@ const getCategoryById = asyncHandler(async (req, res) => {
  */
 const updateCategory = asyncHandler(async (req, res) => {
   const category = await Category.findById(req.params.id);
-  
+
   if (!category) {
-    throw new AppError('Category not found', HTTP_STATUS.NOT_FOUND);
+    throw new AppError("Category not found", HTTP_STATUS.NOT_FOUND);
   }
 
   const updateData = { ...req.body, updatedBy: req.user.id };
 
   // Process keywords
   if (updateData.keywords) {
-    updateData.keywords = updateData.keywords.map(k => k.trim().toLowerCase());
+    updateData.keywords = updateData.keywords.map((k) =>
+      k.trim().toLowerCase()
+    );
   }
 
   try {
@@ -197,22 +198,24 @@ const updateCategory = asyncHandler(async (req, res) => {
       req.params.id,
       updateData,
       { new: true, runValidators: true }
-    ).populate('createdBy updatedBy', 'name email');
+    ).populate("createdBy updatedBy", "name email");
 
-    logger.info(`Category updated: ${updatedCategory.name} by admin: ${req.user.email}`);
+    logger.info(
+      `Category updated: ${updatedCategory.name} by admin: ${req.user.email}`
+    );
 
     res.status(HTTP_STATUS.OK).json({
       success: true,
-      message: 'Category updated successfully',
-      category: updatedCategory
+      message: "Category updated successfully",
+      category: updatedCategory,
     });
   } catch (error) {
     if (error.code === 11000) {
-      throw new AppError('Category name already exists', HTTP_STATUS.CONFLICT);
+      throw new AppError("Category name already exists", HTTP_STATUS.CONFLICT);
     }
-    if (error.name === 'ValidationError') {
-      const messages = Object.values(error.errors).map(err => err.message);
-      throw new AppError(messages.join(', '), HTTP_STATUS.BAD_REQUEST);
+    if (error.name === "ValidationError") {
+      const messages = Object.values(error.errors).map((err) => err.message);
+      throw new AppError(messages.join(", "), HTTP_STATUS.BAD_REQUEST);
     }
     throw error;
   }
@@ -225,16 +228,16 @@ const updateCategory = asyncHandler(async (req, res) => {
  */
 const deleteCategory = asyncHandler(async (req, res) => {
   const category = await Category.findById(req.params.id);
-  
+
   if (!category) {
-    throw new AppError('Category not found', HTTP_STATUS.NOT_FOUND);
+    throw new AppError("Category not found", HTTP_STATUS.NOT_FOUND);
   }
 
   // Check if category can be deleted
   const canDelete = await category.canBeDeleted();
   if (!canDelete) {
     throw new AppError(
-      'Cannot delete category with existing complaints',
+      "Cannot delete category with existing complaints",
       HTTP_STATUS.BAD_REQUEST
     );
   }
@@ -245,7 +248,7 @@ const deleteCategory = asyncHandler(async (req, res) => {
 
   res.status(HTTP_STATUS.OK).json({
     success: true,
-    message: 'Category deleted successfully'
+    message: "Category deleted successfully",
   });
 });
 
@@ -261,7 +264,7 @@ const getUsers = asyncHandler(async (req, res) => {
     role,
     department,
     isActive,
-    search
+    search,
   } = req.query;
 
   let filter = {};
@@ -269,11 +272,11 @@ const getUsers = asyncHandler(async (req, res) => {
   // Apply filters
   if (role) filter.role = role;
   if (department) filter.department = department;
-  if (isActive !== undefined) filter.isActive = isActive === 'true';
+  if (isActive !== undefined) filter.isActive = isActive === "true";
   if (search) {
     filter.$or = [
-      { name: { $regex: search, $options: 'i' } },
-      { email: { $regex: search, $options: 'i' } }
+      { name: { $regex: search, $options: "i" } },
+      { email: { $regex: search, $options: "i" } },
     ];
   }
 
@@ -282,35 +285,39 @@ const getUsers = asyncHandler(async (req, res) => {
   try {
     const [users, total] = await Promise.all([
       User.find(filter)
-        .select('-password')
+        .select("-password")
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(parseInt(limit)),
-      
-      User.countDocuments(filter)
+
+      User.countDocuments(filter),
     ]);
 
     // Get complaint counts for each user
     const usersWithStats = await Promise.all(
       users.map(async (user) => {
-        const totalComplaints = await Complaint.countDocuments({ user: user._id });
-        const resolvedComplaints = await Complaint.countDocuments({ 
-          user: user._id, 
-          status: 'resolved' 
+        const totalComplaints = await Complaint.countDocuments({
+          user: user._id,
         });
-        
+        const resolvedComplaints = await Complaint.countDocuments({
+          user: user._id,
+          status: "resolved",
+        });
+
         let assignedComplaints = 0;
         if (user.role === USER_ROLES.STAFF) {
-          assignedComplaints = await Complaint.countDocuments({ assignedTo: user._id });
+          assignedComplaints = await Complaint.countDocuments({
+            assignedTo: user._id,
+          });
         }
-        
+
         return {
           ...user.toObject(),
           stats: {
             totalComplaints,
             resolvedComplaints,
-            assignedComplaints
-          }
+            assignedComplaints,
+          },
         };
       })
     );
@@ -324,8 +331,8 @@ const getUsers = asyncHandler(async (req, res) => {
         totalUsers: total,
         limit: parseInt(limit),
         hasNext: page * limit < total,
-        hasPrev: page > 1
-      }
+        hasPrev: page > 1,
+      },
     });
   } catch (error) {
     throw error;
@@ -343,12 +350,15 @@ const updateUser = asyncHandler(async (req, res) => {
 
   const user = await User.findById(userId);
   if (!user) {
-    throw new AppError('User not found', HTTP_STATUS.NOT_FOUND);
+    throw new AppError("User not found", HTTP_STATUS.NOT_FOUND);
   }
 
   // Prevent admin from deactivating themselves
   if (user._id.toString() === req.user.id && isActive === false) {
-    throw new AppError('Cannot deactivate your own account', HTTP_STATUS.BAD_REQUEST);
+    throw new AppError(
+      "Cannot deactivate your own account",
+      HTTP_STATUS.BAD_REQUEST
+    );
   }
 
   const updateData = {};
@@ -357,23 +367,24 @@ const updateUser = asyncHandler(async (req, res) => {
   if (isActive !== undefined) updateData.isActive = isActive;
 
   try {
-    const updatedUser = await User.findByIdAndUpdate(
-      userId,
-      updateData,
-      { new: true, runValidators: true }
-    ).select('-password');
+    const updatedUser = await User.findByIdAndUpdate(userId, updateData, {
+      new: true,
+      runValidators: true,
+    }).select("-password");
 
-    logger.info(`User updated: ${updatedUser.email} by admin: ${req.user.email}`);
+    logger.info(
+      `User updated: ${updatedUser.email} by admin: ${req.user.email}`
+    );
 
     res.status(HTTP_STATUS.OK).json({
       success: true,
-      message: 'User updated successfully',
-      user: updatedUser
+      message: "User updated successfully",
+      user: updatedUser,
     });
   } catch (error) {
-    if (error.name === 'ValidationError') {
-      const messages = Object.values(error.errors).map(err => err.message);
-      throw new AppError(messages.join(', '), HTTP_STATUS.BAD_REQUEST);
+    if (error.name === "ValidationError") {
+      const messages = Object.values(error.errors).map((err) => err.message);
+      throw new AppError(messages.join(", "), HTTP_STATUS.BAD_REQUEST);
     }
     throw error;
   }
@@ -395,26 +406,26 @@ const getDashboardStats = asyncHandler(async (req, res) => {
       totalCategories,
       totalFeedbacks,
       recentComplaints,
-      recentUsers
+      recentUsers,
     ] = await Promise.all([
       User.countDocuments({ isActive: true }),
       Complaint.countDocuments(),
-      Complaint.countDocuments({ 
-        status: { $nin: ['resolved', 'closed'] } 
+      Complaint.countDocuments({
+        status: { $nin: ["resolved", "closed"] },
       }),
-      Complaint.countDocuments({ status: 'resolved' }),
-      Complaint.countDocuments({ 'escalation.isEscalated': true }),
+      Complaint.countDocuments({ status: "resolved" }),
+      Complaint.countDocuments({ "escalation.isEscalated": true }),
       Category.countDocuments({ isActive: true }),
       Feedback.countDocuments(),
       Complaint.find()
-        .populate('user', 'name email')
-        .populate('category', 'name')
+        .populate("user", "name email")
+        .populate("category", "name")
         .sort({ createdAt: -1 })
         .limit(5),
       User.find({ isActive: true })
-        .select('-password')
+        .select("-password")
         .sort({ createdAt: -1 })
-        .limit(5)
+        .limit(5),
     ]);
 
     // Get average rating from feedbacks
@@ -425,33 +436,29 @@ const getDashboardStats = asyncHandler(async (req, res) => {
     const departmentStats = await Complaint.aggregate([
       {
         $lookup: {
-          from: 'categories',
-          localField: 'category',
-          foreignField: '_id',
-          as: 'categoryData'
-        }
+          from: "categories",
+          localField: "category",
+          foreignField: "_id",
+          as: "categoryData",
+        },
       },
-      { $unwind: '$categoryData' },
+      { $unwind: "$categoryData" },
       {
         $group: {
-          _id: '$categoryData.department',
+          _id: "$categoryData.department",
           totalComplaints: { $sum: 1 },
           pendingComplaints: {
             $sum: {
-              $cond: [
-                { $nin: ['$status', ['resolved', 'closed']] },
-                1,
-                0
-              ]
-            }
+              $cond: [{ $nin: ["$status", ["resolved", "closed"]] }, 1, 0],
+            },
           },
           resolvedComplaints: {
             $sum: {
-              $cond: [{ $eq: ['$status', 'resolved'] }, 1, 0]
-            }
-          }
-        }
-      }
+              $cond: [{ $eq: ["$status", "resolved"] }, 1, 0],
+            },
+          },
+        },
+      },
     ]);
 
     res.status(HTTP_STATUS.OK).json({
@@ -461,25 +468,28 @@ const getDashboardStats = asyncHandler(async (req, res) => {
           users: totalUsers,
           complaints: totalComplaints,
           categories: totalCategories,
-          feedbacks: totalFeedbacks
+          feedbacks: totalFeedbacks,
         },
         complaints: {
           total: totalComplaints,
           pending: pendingComplaints,
           resolved: resolvedComplaints,
           escalated: escalatedComplaints,
-          resolutionRate: totalComplaints > 0 ? (resolvedComplaints / totalComplaints * 100).toFixed(1) : 0
+          resolutionRate:
+            totalComplaints > 0
+              ? ((resolvedComplaints / totalComplaints) * 100).toFixed(1)
+              : 0,
         },
         feedback: {
           averageRating: Number(averageRating.toFixed(1)),
-          totalFeedbacks
+          totalFeedbacks,
         },
         recent: {
           complaints: recentComplaints,
-          users: recentUsers
+          users: recentUsers,
         },
-        departmentStats
-      }
+        departmentStats,
+      },
     });
   } catch (error) {
     throw error;
@@ -494,5 +504,5 @@ module.exports = {
   deleteCategory,
   getUsers,
   updateUser,
-  getDashboardStats
+  getDashboardStats,
 };
