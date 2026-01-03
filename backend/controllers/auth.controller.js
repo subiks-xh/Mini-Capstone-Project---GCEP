@@ -98,12 +98,26 @@ const login = asyncHandler(async (req, res) => {
   const { email, password } = req.body;
 
   try {
+    // Debug logging
+    logger.info(
+      `Login attempt - Email: ${email}, Password provided: ${!!password}, Password length: ${
+        password?.length
+      }`
+    );
+
     // Find user and include password for verification
     const user = await User.findOne({
       email: email.toLowerCase().trim(),
     }).select("+password");
 
+    logger.info(
+      `User found: ${!!user}, User email: ${user?.email}, User active: ${
+        user?.isActive
+      }`
+    );
+
     if (!user) {
+      logger.warn(`User not found for email: ${email}`);
       throw new AppError(
         RESPONSE_MESSAGES.ERROR.INVALID_CREDENTIALS,
         HTTP_STATUS.UNAUTHORIZED
@@ -112,6 +126,7 @@ const login = asyncHandler(async (req, res) => {
 
     // Check if user is active
     if (!user.isActive) {
+      logger.warn(`Inactive user login attempt: ${email}`);
       throw new AppError(
         "Account has been deactivated. Please contact administrator.",
         HTTP_STATUS.UNAUTHORIZED
@@ -119,7 +134,10 @@ const login = asyncHandler(async (req, res) => {
     }
 
     // Verify password
+    logger.info(`Attempting password comparison for user: ${email}`);
     const isPasswordMatch = await user.comparePassword(password);
+    logger.info(`Password match result: ${isPasswordMatch}`);
+
     if (!isPasswordMatch) {
       logger.warn(`Failed login attempt for email: ${email}`);
       throw new AppError(

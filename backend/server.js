@@ -18,11 +18,25 @@ const staffRoutes = require("./routes/staff.routes");
 
 // Services
 const BackgroundJobsService = require("./services/backgroundJobs.service");
+const { seedUsers, seedCategories } = require("./scripts/seed");
+
 // Initialize Express app
 const app = express();
 
-// Connect to MongoDB
-connectDB();
+// Connect to MongoDB and seed demo data
+const initializeDatabase = async () => {
+  try {
+    await connectDB();
+    // Seed demo users and categories if they don't exist
+    await seedUsers();
+    await seedCategories();
+    logger.info("Database initialization completed");
+  } catch (error) {
+    logger.error("Database initialization failed:", error);
+  }
+};
+
+initializeDatabase();
 
 // Security middleware
 app.use(
@@ -146,10 +160,10 @@ process.on("uncaughtException", (err) => {
 // Graceful shutdown
 process.on("SIGTERM", () => {
   logger.info("SIGTERM received. Shutting down gracefully...");
-  
+
   // Stop background jobs first
   BackgroundJobsService.stopAll();
-  
+
   if (server) {
     server.close(() => {
       logger.info("Process terminated");
@@ -159,10 +173,10 @@ process.on("SIGTERM", () => {
 
 process.on("SIGINT", () => {
   logger.info("SIGINT received. Shutting down gracefully...");
-  
+
   // Stop background jobs first
   BackgroundJobsService.stopAll();
-  
+
   if (server) {
     server.close(() => {
       logger.info("Process terminated");
@@ -199,7 +213,9 @@ const server = app.listen(PORT, () => {
     logger.info(`- GET  http://localhost:${PORT}/api/admin/categories`);
     logger.info(`- GET  http://localhost:${PORT}/api/admin/users`);
     logger.info(`- GET  http://localhost:${PORT}/api/staff/dashboard`);
-    logger.info(`- GET  http://localhost:${PORT}/api/staff/available/:categoryId`);
+    logger.info(
+      `- GET  http://localhost:${PORT}/api/staff/available/:categoryId`
+    );
     logger.info(`- POST http://localhost:${PORT}/api/staff/assign`);
   }
 });

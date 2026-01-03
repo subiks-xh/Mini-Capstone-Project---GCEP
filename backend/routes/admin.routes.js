@@ -13,9 +13,9 @@ const {
 } = require("../controllers/admin.controller");
 
 // Services
-const AnalyticsService = require('../services/analytics.service');
-const EscalationService = require('../services/escalation.service');
-const BackgroundJobsService = require('../services/backgroundJobs.service');
+const AnalyticsService = require("../services/analytics.service");
+const EscalationService = require("../services/escalation.service");
+const BackgroundJobsService = require("../services/backgroundJobs.service");
 
 // Middleware
 const { authenticate } = require("../middleware/auth.middleware");
@@ -29,8 +29,8 @@ const {
 } = require("../middleware/validation.middleware");
 
 // Constants
-const { HTTP_STATUS } = require('../config/constants');
-const logger = require('../utils/logger');
+const { HTTP_STATUS } = require("../config/constants");
+const logger = require("../utils/logger");
 
 const router = express.Router();
 
@@ -87,18 +87,18 @@ router.patch("/users/:id", validateObjectId("id"), requireAdmin, updateUser);
  * @route   GET /api/admin/escalations/preview
  * @access  Private (Admin only)
  */
-router.get('/escalations/preview', requireAdmin, async (req, res) => {
+router.get("/escalations/preview", requireAdmin, async (req, res) => {
   try {
     const preview = await EscalationService.previewEscalations();
     res.status(HTTP_STATUS.OK).json({
       success: true,
-      data: preview
+      data: preview,
     });
   } catch (error) {
-    logger.error('Error getting escalation preview:', error);
+    logger.error("Error getting escalation preview:", error);
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
       success: false,
-      message: 'Error getting escalation preview'
+      message: "Error getting escalation preview",
     });
   }
 });
@@ -108,19 +108,19 @@ router.get('/escalations/preview', requireAdmin, async (req, res) => {
  * @route   GET /api/admin/escalations/at-risk
  * @access  Private (Admin only)
  */
-router.get('/escalations/at-risk', requireAdmin, async (req, res) => {
+router.get("/escalations/at-risk", requireAdmin, async (req, res) => {
   try {
     const { hours = 2 } = req.query;
     const atRisk = await EscalationService.getAtRiskComplaints(parseInt(hours));
     res.status(HTTP_STATUS.OK).json({
       success: true,
-      data: atRisk
+      data: atRisk,
     });
   } catch (error) {
-    logger.error('Error getting at-risk complaints:', error);
+    logger.error("Error getting at-risk complaints:", error);
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
       success: false,
-      message: 'Error getting at-risk complaints'
+      message: "Error getting at-risk complaints",
     });
   }
 });
@@ -130,19 +130,22 @@ router.get('/escalations/at-risk', requireAdmin, async (req, res) => {
  * @route   GET /api/admin/escalations/stats
  * @access  Private (Admin only)
  */
-router.get('/escalations/stats', requireAdmin, async (req, res) => {
+router.get("/escalations/stats", requireAdmin, async (req, res) => {
   try {
     const { startDate, endDate } = req.query;
-    const stats = await EscalationService.getEscalationStats({ startDate, endDate });
+    const stats = await EscalationService.getEscalationStats({
+      startDate,
+      endDate,
+    });
     res.status(HTTP_STATUS.OK).json({
       success: true,
-      data: stats
+      data: stats,
     });
   } catch (error) {
-    logger.error('Error getting escalation stats:', error);
+    logger.error("Error getting escalation stats:", error);
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
       success: false,
-      message: 'Error getting escalation statistics'
+      message: "Error getting escalation statistics",
     });
   }
 });
@@ -152,22 +155,26 @@ router.get('/escalations/stats', requireAdmin, async (req, res) => {
  * @route   POST /api/admin/escalations/manual
  * @access  Private (Admin only)
  */
-router.post('/escalations/manual', requireAdmin, async (req, res) => {
+router.post("/escalations/manual", requireAdmin, async (req, res) => {
   try {
     const { complaintId, reason } = req.body;
     const adminId = req.user._id;
-    
-    const result = await EscalationService.manualEscalation(complaintId, adminId, reason);
+
+    const result = await EscalationService.manualEscalation(
+      complaintId,
+      adminId,
+      reason
+    );
     res.status(HTTP_STATUS.OK).json({
       success: true,
-      message: 'Complaint escalated successfully',
-      data: result
+      message: "Complaint escalated successfully",
+      data: result,
     });
   } catch (error) {
-    logger.error('Error in manual escalation:', error);
+    logger.error("Error in manual escalation:", error);
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
       success: false,
-      message: error.message || 'Error escalating complaint'
+      message: error.message || "Error escalating complaint",
     });
   }
 });
@@ -178,18 +185,18 @@ router.post('/escalations/manual', requireAdmin, async (req, res) => {
  * @route   GET /api/admin/jobs/status
  * @access  Private (Admin only)
  */
-router.get('/jobs/status', requireAdmin, async (req, res) => {
+router.get("/jobs/status", requireAdmin, async (req, res) => {
   try {
     const status = BackgroundJobsService.getJobStatus();
     res.status(HTTP_STATUS.OK).json({
       success: true,
-      data: status
+      data: status,
     });
   } catch (error) {
-    logger.error('Error getting job status:', error);
+    logger.error("Error getting job status:", error);
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
       success: false,
-      message: 'Error getting job status'
+      message: "Error getting job status",
     });
   }
 });
@@ -199,19 +206,19 @@ router.get('/jobs/status', requireAdmin, async (req, res) => {
  * @route   POST /api/admin/jobs/escalation/run
  * @access  Private (Admin only)
  */
-router.post('/jobs/escalation/run', requireAdmin, async (req, res) => {
+router.post("/jobs/escalation/run", requireAdmin, async (req, res) => {
   try {
     const result = await BackgroundJobsService.runEscalationManually();
     res.status(HTTP_STATUS.OK).json({
       success: true,
-      message: 'Manual escalation check completed',
-      data: result
+      message: "Manual escalation check completed",
+      data: result,
     });
   } catch (error) {
-    logger.error('Error in manual escalation run:', error);
+    logger.error("Error in manual escalation run:", error);
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
       success: false,
-      message: error.message || 'Error running escalation check'
+      message: error.message || "Error running escalation check",
     });
   }
 });
@@ -222,22 +229,22 @@ router.post('/jobs/escalation/run', requireAdmin, async (req, res) => {
  * @route   GET /api/admin/analytics/report
  * @access  Private (Admin only)
  */
-router.get('/analytics/report', requireAdmin, async (req, res) => {
+router.get("/analytics/report", requireAdmin, async (req, res) => {
   try {
     const { startDate, endDate, trendDays = 30 } = req.query;
     const report = await AnalyticsService.generateDashboardReport({
       dateRange: { startDate, endDate },
-      trendDays: parseInt(trendDays)
+      trendDays: parseInt(trendDays),
     });
     res.status(HTTP_STATUS.OK).json({
       success: true,
-      data: report
+      data: report,
     });
   } catch (error) {
-    logger.error('Error generating dashboard report:', error);
+    logger.error("Error generating dashboard report:", error);
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
       success: false,
-      message: 'Error generating comprehensive report'
+      message: "Error generating comprehensive report",
     });
   }
 });
@@ -247,19 +254,22 @@ router.get('/analytics/report', requireAdmin, async (req, res) => {
  * @route   GET /api/admin/analytics/overview
  * @access  Private (Admin only)
  */
-router.get('/analytics/overview', requireAdmin, async (req, res) => {
+router.get("/analytics/overview", requireAdmin, async (req, res) => {
   try {
     const { startDate, endDate } = req.query;
-    const analytics = await AnalyticsService.getOverviewAnalytics({ startDate, endDate });
+    const analytics = await AnalyticsService.getOverviewAnalytics({
+      startDate,
+      endDate,
+    });
     res.status(HTTP_STATUS.OK).json({
       success: true,
-      data: analytics
+      data: analytics,
     });
   } catch (error) {
-    logger.error('Error getting overview analytics:', error);
+    logger.error("Error getting overview analytics:", error);
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
       success: false,
-      message: 'Error getting overview analytics'
+      message: "Error getting overview analytics",
     });
   }
 });

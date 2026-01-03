@@ -1,5 +1,5 @@
-const { body, param, query } = require('express-validator');
-const mongoose = require('mongoose');
+const { body, param, query } = require("express-validator");
+const mongoose = require("mongoose");
 
 /**
  * Staff Validation Middleware
@@ -8,101 +8,99 @@ const mongoose = require('mongoose');
 
 // Validate complaint assignment
 const validateAssignComplaint = [
-  body('complaintId')
+  body("complaintId")
     .notEmpty()
-    .withMessage('Complaint ID is required')
+    .withMessage("Complaint ID is required")
     .custom((value) => {
       if (!mongoose.Types.ObjectId.isValid(value)) {
-        throw new Error('Invalid complaint ID format');
+        throw new Error("Invalid complaint ID format");
       }
       return true;
     }),
-  
-  body('staffId')
+
+  body("staffId")
     .notEmpty()
-    .withMessage('Staff ID is required')
+    .withMessage("Staff ID is required")
     .custom((value) => {
       if (!mongoose.Types.ObjectId.isValid(value)) {
-        throw new Error('Invalid staff ID format');
+        throw new Error("Invalid staff ID format");
       }
       return true;
     }),
-  
-  body('priority')
+
+  body("priority")
     .optional()
-    .isIn(['low', 'medium', 'high', 'urgent'])
-    .withMessage('Priority must be one of: low, medium, high, urgent'),
-  
-  body('notes')
+    .isIn(["low", "medium", "high", "urgent"])
+    .withMessage("Priority must be one of: low, medium, high, urgent"),
+
+  body("notes")
     .optional()
     .isLength({ max: 500 })
-    .withMessage('Notes cannot exceed 500 characters')
+    .withMessage("Notes cannot exceed 500 characters"),
 ];
 
 // Validate auto assignment
 const validateAutoAssign = [
-  body('complaintId')
+  body("complaintId")
     .notEmpty()
-    .withMessage('Complaint ID is required')
+    .withMessage("Complaint ID is required")
     .custom((value) => {
       if (!mongoose.Types.ObjectId.isValid(value)) {
-        throw new Error('Invalid complaint ID format');
+        throw new Error("Invalid complaint ID format");
       }
       return true;
-    })
+    }),
 ];
 
 // Validate staff ID parameter
 const validateStaffId = [
-  param('staffId')
-    .custom((value) => {
-      if (!mongoose.Types.ObjectId.isValid(value)) {
-        throw new Error('Invalid staff ID format');
-      }
-      return true;
-    })
+  param("staffId").custom((value) => {
+    if (!mongoose.Types.ObjectId.isValid(value)) {
+      throw new Error("Invalid staff ID format");
+    }
+    return true;
+  }),
 ];
 
 // Validate category ID parameter
 const validateCategoryId = [
-  param('categoryId')
-    .custom((value) => {
-      if (!mongoose.Types.ObjectId.isValid(value)) {
-        throw new Error('Invalid category ID format');
-      }
-      return true;
-    })
+  param("categoryId").custom((value) => {
+    if (!mongoose.Types.ObjectId.isValid(value)) {
+      throw new Error("Invalid category ID format");
+    }
+    return true;
+  }),
 ];
 
 // Validate staff query parameters
 const validateStaffQuery = [
-  query('page')
+  query("page")
     .optional()
     .isInt({ min: 1 })
-    .withMessage('Page must be a positive integer'),
-  
-  query('limit')
+    .withMessage("Page must be a positive integer"),
+
+  query("limit")
     .optional()
     .isInt({ min: 1, max: 100 })
-    .withMessage('Limit must be between 1 and 100'),
-  
-  query('department')
+    .withMessage("Limit must be between 1 and 100"),
+
+  query("department")
     .optional()
     .isLength({ min: 2, max: 50 })
-    .withMessage('Department must be between 2 and 50 characters'),
-  
-  query('isActive')
+    .withMessage("Department must be between 2 and 50 characters"),
+
+  query("isActive")
     .optional()
     .isBoolean()
-    .withMessage('isActive must be a boolean value')
+    .withMessage("isActive must be a boolean value"),
 ];
 
 // Validate performance query parameters
 const validatePerformanceQuery = [
-  query('days')
+  query("days")
     .optional()
     .isInt({ min: 1, max: 365 })
-    .withMessage('Days must be between 1 and 365')
+    .withMessage("Days must be between 1 and 365"),
 ];
 
 module.exports = {
@@ -111,5 +109,5 @@ module.exports = {
   validateStaffId,
   validateCategoryId,
   validateStaffQuery,
-  validatePerformanceQuery
+  validatePerformanceQuery,
 };
