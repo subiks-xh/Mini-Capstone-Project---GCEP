@@ -10,7 +10,9 @@ const {
   deleteComplaint,
   updateComplaintStatus,
   assignComplaint,
+  unassignComplaint,
   getComplaintAnalytics,
+  exportComplaints,
 } = require("../controllers/complaint.controller");
 
 // Middleware
@@ -134,6 +136,31 @@ router.patch(
   validateObjectId("id"),
   requireAdmin,
   assignComplaint
+);
+
+/**
+ * @desc    Unassign complaint from staff
+ * @route   PATCH /api/complaints/:id/unassign
+ * @access  Private (Admin only)
+ */
+router.patch(
+  "/:id/unassign",
+  validateObjectId("id"),
+  requireAdmin,
+  unassignComplaint
+);
+
+/**
+ * @desc    Export complaints to CSV
+ * @route   GET /api/complaints/export
+ * @access  Private (Staff/Admin only)
+ */
+router.get(
+  "/export",
+  authenticate,
+  requireStaffOrAdmin,
+  validatePagination,
+  exportComplaints
 );
 
 module.exports = router;

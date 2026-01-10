@@ -31,6 +31,7 @@ import {
 } from "@mui/icons-material";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
+import NotificationPanel from "./NotificationPanel";
 
 const Navigation: React.FC = () => {
   const navigate = useNavigate();
@@ -84,15 +85,21 @@ const Navigation: React.FC = () => {
       roles: ["user"],
     },
     {
+      text: "Analytics",
+      icon: <Analytics />,
+      path: "/analytics",
+      roles: ["staff", "admin"],
+    },
+    {
       text: "Staff Management",
       icon: <Group />,
       path: "/admin/staff",
       roles: ["admin"],
     },
     {
-      text: "Analytics",
-      icon: <Analytics />,
-      path: "/admin/analytics",
+      text: "System Management",
+      icon: <AdminPanelSettings />,
+      path: "/admin/management",
       roles: ["admin"],
     },
   ];
@@ -154,7 +161,10 @@ const Navigation: React.FC = () => {
             </Box>
           )}
 
-          <Box sx={{ ml: 2 }}>
+          <Box sx={{ ml: 2, display: "flex", alignItems: "center", gap: 1 }}>
+            {/* Real-time Notifications */}
+            <NotificationPanel />
+
             <IconButton
               size="large"
               aria-label="account of current user"

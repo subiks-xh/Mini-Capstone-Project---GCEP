@@ -814,6 +814,179 @@ class AnalyticsService {
       throw error;
     }
   }
+
+  /**
+   * Get dashboard stats with improved interface
+   */
+  static async getDashboardStats(userId, userRole, timeframe = "30d") {
+    try {
+      // Parse timeframe
+      const days = parseInt(timeframe.replace("d", "")) || 30;
+      const endDate = new Date();
+      const startDate = new Date();
+      startDate.setDate(endDate.getDate() - days);
+
+      const dateRange = { startDate, endDate };
+
+      // Get base analytics
+      const overview = await this.getOverviewAnalytics(dateRange);
+      const categories = await this.getCategoryAnalytics(dateRange);
+
+      // Convert to expected format
+      const result = {
+        overview: {
+          totalComplaints: overview.totalComplaints || 0,
+          pendingComplaints: overview.statusCounts?.pending || 0,
+          inProgressComplaints: overview.statusCounts?.in_progress || 0,
+          resolvedComplaints: overview.statusCounts?.resolved || 0,
+          escalatedComplaints: overview.escalationStats?.totalEscalated || 0,
+          avgResolutionTime: {
+            avgHours: overview.avgResolutionTime || 0,
+            count: overview.resolvedCount || 0,
+          },
+        },
+        categoryStats: categories.categoryBreakdown || [],
+        priorityStats: overview.priorityCounts || [],
+        statusTrends: [],
+        timeframe,
+        period: {
+          startDate: startDate.toISOString(),
+          endDate: endDate.toISOString(),
+        },
+      };
+
+      return result;
+    } catch (error) {
+      logger.error("Error in getDashboardStats:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get staff performance metrics
+   */
+  static async getStaffPerformanceMetrics(timeframe = "30d") {
+    try {
+      const days = parseInt(timeframe.replace("d", "")) || 30;
+      const endDate = new Date();
+      const startDate = new Date();
+      startDate.setDate(endDate.getDate() - days);
+
+      const dateRange = { startDate, endDate };
+      const staffAnalytics = await this.getStaffAnalytics(dateRange);
+
+      return staffAnalytics.staffPerformance || [];
+    } catch (error) {
+      logger.error("Error in getStaffPerformanceMetrics:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get complaint volume trends
+   */
+  static async getComplaintVolumeTrends(timeframe = "30d") {
+    try {
+      const days = parseInt(timeframe.replace("d", "")) || 30;
+      const trends = await this.getTrendAnalytics({ days });
+
+      return trends.volumeTrends || [];
+    } catch (error) {
+      logger.error("Error in getComplaintVolumeTrends:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get real-time metrics
+   */
+  static async getRealtimeMetrics() {
+    try {
+      const now = new Date();
+      const todayStart = new Date(
+        now.getFullYear(),
+        now.getMonth(),
+        now.getDate()
+      );
+
+      const [todayComplaints, pendingComplaints, overdueComplaints] =
+        await Promise.all([
+          Complaint.countDocuments({ createdAt: { $gte: todayStart } }),
+          Complaint.countDocuments({ status: COMPLAINT_STATUS.SUBMITTED }),
+          Complaint.countDocuments({
+            deadline: { $lt: now },
+            status: {
+              $in: [COMPLAINT_STATUS.SUBMITTED, COMPLAINT_STATUS.IN_PROGRESS],
+            },
+          }),
+        ]);
+
+      return {
+        todayComplaints,
+        pendingComplaints,
+        overdueComplaints,
+        lastUpdated: now.toISOString(),
+      };
+    } catch (error) {
+      logger.error("Error in getRealtimeMetrics:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Export analytics data
+   */
+  static async exportAnalyticsData(options = {}) {
+    try {
+      const {
+        format = "json",
+        timeframe = "30d",
+        options: exportOptions = {},
+      } = options;
+
+      const days = parseInt(timeframe.replace("d", "")) || 30;
+      const endDate = new Date();
+      const startDate = new Date();
+      startDate.setDate(endDate.getDate() - days);
+      const dateRange = { startDate, endDate };
+
+      const data = {};
+
+      if (exportOptions.includeCategories) {
+        data.categories = await this.getCategoryAnalytics(dateRange);
+      }
+
+      if (exportOptions.includeStaff) {
+        data.staff = await this.getStaffAnalytics(dateRange);
+      }
+
+      if (exportOptions.includeResolutionTimes) {
+        data.overview = await this.getOverviewAnalytics(dateRange);
+      }
+
+      if (format === "csv") {
+        // Convert to CSV format
+        let csv = "Type,Name,Total,Resolved,Pending,In Progress,Escalated\n";
+
+        if (data.categories?.categoryBreakdown) {
+          data.categories.categoryBreakdown.forEach((cat) => {
+            csv += `Category,${cat.name},${cat.totalComplaints},${
+              cat.resolved || 0
+            },${cat.pending || 0},${cat.inProgress || 0},${
+              cat.escalated || 0
+            }\n`;
+          });
+        }
+
+        return csv;
+      }
+
+      return JSON.stringify(data, null, 2);
+    } catch (error) {
+      logger.error("Error in exportAnalyticsData:", error);
+      throw error;
+    }
+  }
 }
 
 module.exports = AnalyticsService;

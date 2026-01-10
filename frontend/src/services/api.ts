@@ -118,6 +118,18 @@ export const complaintsApi = {
       .patch(`/complaints/${id}/assign`, { assignedTo })
       .then((res) => res.data),
 
+  // Staff assignment methods
+  getAvailableStaff: (categoryId: string): Promise<ApiResponse<User[]>> =>
+    api.get(`/staff/available/${categoryId}`).then((res) => res.data),
+
+  assignStaff: (id: string, staffId: string): Promise<ApiResponse<Complaint>> =>
+    api
+      .patch(`/complaints/${id}/assign`, { assignedTo: staffId })
+      .then((res) => res.data),
+
+  unassignStaff: (id: string): Promise<ApiResponse<Complaint>> =>
+    api.patch(`/complaints/${id}/unassign`).then((res) => res.data),
+
   deleteComplaint: (id: string): Promise<ApiResponse> =>
     api.delete(`/complaints/${id}`).then((res) => res.data),
 
@@ -136,6 +148,14 @@ export const complaintsApi = {
     note: string
   ): Promise<ApiResponse<Complaint>> =>
     api.post(`/complaints/${id}/notes`, { note }).then((res) => res.data),
+
+  exportComplaints: (params: any): Promise<any> =>
+    api
+      .get("/complaints/export", {
+        params,
+        responseType: "blob", // Important for file downloads
+      })
+      .then((res) => res),
 };
 
 // Categories API
@@ -174,6 +194,42 @@ export const adminApi = {
     updates: Partial<User>
   ): Promise<ApiResponse<User>> =>
     api.patch(`/admin/users/${id}`, updates).then((res) => res.data),
+
+  // Additional admin methods
+  getAllUsers: (): Promise<ApiResponse<User[]>> =>
+    api.get("/admin/users").then((res) => res.data),
+
+  createUser: (userData: any): Promise<ApiResponse<User>> =>
+    api.post("/admin/users", userData).then((res) => res.data),
+
+  deleteUser: (userId: string): Promise<ApiResponse> =>
+    api.delete(`/admin/users/${userId}`).then((res) => res.data),
+
+  toggleUserStatus: (userId: string): Promise<ApiResponse<User>> =>
+    api.patch(`/admin/users/${userId}/toggle-status`).then((res) => res.data),
+
+  // Department management
+  getAllDepartments: (): Promise<ApiResponse<any[]>> =>
+    api.get("/admin/departments").then((res) => res.data),
+
+  createDepartment: (departmentData: any): Promise<ApiResponse<any>> =>
+    api.post("/admin/departments", departmentData).then((res) => res.data),
+
+  updateDepartment: (
+    departmentId: string,
+    departmentData: any
+  ): Promise<ApiResponse<any>> =>
+    api
+      .put(`/admin/departments/${departmentId}`, departmentData)
+      .then((res) => res.data),
+
+  // System management
+  getSystemStats: (): Promise<ApiResponse<any>> =>
+    api.get("/admin/system/stats").then((res) => res.data),
+
+  // Export functions
+  exportUsers: (): Promise<any> =>
+    api.get("/admin/users/export", { responseType: "blob" }).then((res) => res),
 
   // Analytics endpoints
   getOverviewAnalytics: (dateRange?: {
@@ -304,8 +360,8 @@ export const apiUtils = {
     if (filters.limit) params.limit = filters.limit;
     if (filters.sortBy) params.sortBy = filters.sortBy;
     if (filters.sortOrder) params.sortOrder = filters.sortOrder;
-    if (filters.status) params.status = filters.status.join(",");
-    if (filters.priority) params.priority = filters.priority.join(",");
+    if (filters.status) params.status = filters.status;
+    if (filters.priority) params.priority = filters.priority;
     if (filters.category) params.category = filters.category;
     if (filters.assignedTo) params.assignedTo = filters.assignedTo;
     if (filters.search) params.search = filters.search;
@@ -316,4 +372,122 @@ export const apiUtils = {
 
     return params;
   },
+};
+
+// Analytics API
+export const analyticsApi = {
+  // Get dashboard statistics
+  getDashboardStats: async (timeframe = "30d"): Promise<ApiResponse<any>> => {
+    const response: AxiosResponse = await api.get("/analytics/dashboard", {
+      params: { timeframe },
+    });
+    return response.data;
+  },
+
+  // Get staff performance metrics
+  getStaffPerformance: async (timeframe = "30d"): Promise<ApiResponse<any>> => {
+    const response: AxiosResponse = await api.get(
+      "/analytics/staff-performance",
+      {
+        params: { timeframe },
+      }
+    );
+    return response.data;
+  },
+
+  // Get volume trends
+  getVolumeTrends: async (timeframe = "30d"): Promise<ApiResponse<any>> => {
+    const response: AxiosResponse = await api.get("/analytics/volume-trends", {
+      params: { timeframe },
+    });
+    return response.data;
+  },
+
+  // Get real-time metrics
+  getRealtimeMetrics: async (): Promise<ApiResponse<any>> => {
+    const response: AxiosResponse = await api.get("/analytics/realtime");
+    return response.data;
+  },
+
+  // Get category analytics
+  getCategoryAnalytics: async (
+    timeframe = "30d"
+  ): Promise<ApiResponse<any>> => {
+    const response: AxiosResponse = await api.get("/analytics/categories", {
+      params: { timeframe },
+    });
+    return response.data;
+  },
+
+  // Get resolution time analytics
+  getResolutionTimeAnalytics: async (
+    timeframe = "30d"
+  ): Promise<ApiResponse<any>> => {
+    const response: AxiosResponse = await api.get(
+      "/analytics/resolution-times",
+      {
+        params: { timeframe },
+      }
+    );
+    return response.data;
+  },
+
+  // Get user satisfaction analytics
+  getUserSatisfactionAnalytics: async (
+    timeframe = "30d"
+  ): Promise<ApiResponse<any>> => {
+    const response: AxiosResponse = await api.get("/analytics/satisfaction", {
+      params: { timeframe },
+    });
+    return response.data;
+  },
+
+  // Export analytics data
+  exportData: async (options: {
+    format?: string;
+    timeframe?: string;
+    includeCategories?: boolean;
+    includeStaff?: boolean;
+    includeResolutionTimes?: boolean;
+  }): Promise<ApiResponse<any>> => {
+    const response: AxiosResponse = await api.get("/analytics/export", {
+      params: options,
+      responseType: options.format === "csv" ? "text" : "json",
+    });
+    return response.data;
+  },
+};
+
+// Users API
+export const usersApi = {
+  // Get staff members
+  getStaffMembers: (): Promise<ApiResponse<User[]>> =>
+    api.get("/users/staff").then((res) => res.data),
+
+  // Get departments
+  getDepartments: (): Promise<ApiResponse<any[]>> =>
+    api.get("/departments").then((res) => res.data),
+
+  // Get users
+  getUsers: (params?: any): Promise<ApiResponse<User[]>> =>
+    api.get("/users", { params }).then((res) => res.data),
+
+  // Get user by ID
+  getUserById: (id: string): Promise<ApiResponse<User>> =>
+    api.get(`/users/${id}`).then((res) => res.data),
+
+  // Create user
+  createUser: (userData: any): Promise<ApiResponse<User>> =>
+    api.post("/users", userData).then((res) => res.data),
+
+  // Update user
+  updateUser: (
+    id: string,
+    updates: Partial<User>
+  ): Promise<ApiResponse<User>> =>
+    api.put(`/users/${id}`, updates).then((res) => res.data),
+
+  // Delete user
+  deleteUser: (id: string): Promise<ApiResponse> =>
+    api.delete(`/users/${id}`).then((res) => res.data),
 };

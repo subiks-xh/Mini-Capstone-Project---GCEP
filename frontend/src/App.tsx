@@ -13,6 +13,7 @@ import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
 // Context Providers
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import { NotificationProvider } from "./context/NotificationContext";
+import { RealtimeNotificationProvider } from "./context/RealtimeNotificationContext";
 
 // Components
 import Login from "./pages/Login";
@@ -23,6 +24,8 @@ import AdminDashboard from "./pages/AdminDashboard";
 import ComplaintsList from "./pages/ComplaintsList";
 import ComplaintDetails from "./pages/ComplaintDetails";
 import CreateComplaint from "./pages/CreateComplaint";
+import AnalyticsDashboard from "./pages/AnalyticsDashboard";
+import AdminManagementPanel from "./pages/AdminManagementPanel";
 import Profile from "./pages/Profile";
 import NotFound from "./pages/NotFound";
 
@@ -242,6 +245,22 @@ const AppRoutes: React.FC = () => {
         }
       />
       <Route
+        path="/analytics"
+        element={
+          <ProtectedRoute allowedRoles={["staff", "admin"]}>
+            <AnalyticsDashboard />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/management"
+        element={
+          <ProtectedRoute allowedRoles={["admin"]}>
+            <AdminManagementPanel />
+          </ProtectedRoute>
+        }
+      />
+      <Route
         path="/profile"
         element={
           <ProtectedRoute>
@@ -266,11 +285,13 @@ const App: React.FC = () => {
         <CssBaseline />
         <NotificationProvider>
           <AuthProvider>
-            <Router>
-              <Layout>
-                <AppRoutes />
-              </Layout>
-            </Router>
+            <RealtimeNotificationProvider>
+              <Router>
+                <Layout>
+                  <AppRoutes />
+                </Layout>
+              </Router>
+            </RealtimeNotificationProvider>
           </AuthProvider>
         </NotificationProvider>
       </ThemeProvider>

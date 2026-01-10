@@ -34,9 +34,14 @@ const connectDB = async () => {
         process.exit(1);
       }
     });
+
+    return true;
   } catch (error) {
     logger.error("Database connection error:", error);
-    process.exit(1);
+    logger.warn(
+      "Continuing without database connection - some features may not work"
+    );
+    return false;
   }
 };
 

@@ -14,6 +14,7 @@ export interface User {
 // Complaint Types
 export interface Complaint {
   _id: string;
+  ticketId: string;
   title: string;
   description: string;
   category: Category;
@@ -51,11 +52,16 @@ export interface StatusHistoryItem {
 }
 
 export interface Attachment {
+  _id: string;
   filename: string;
   originalName: string;
   mimetype: string;
   size: number;
   uploadedAt: string;
+  uploadedBy: {
+    name: string;
+    email: string;
+  };
 }
 
 export interface InternalNote {
@@ -302,8 +308,8 @@ export interface TableColumn {
 
 // Filter Types
 export interface ComplaintFilters {
-  status?: string[];
-  priority?: string[];
+  status?: string;
+  priority?: string;
   category?: string;
   assignedTo?: string;
   dateRange?: {

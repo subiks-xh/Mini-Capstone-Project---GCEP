@@ -15,9 +15,12 @@ const authRoutes = require("./routes/auth.routes");
 const complaintRoutes = require("./routes/complaint.routes");
 const adminRoutes = require("./routes/admin.routes");
 const staffRoutes = require("./routes/staff.routes");
+// const uploadRoutes = require("./routes/upload.routes"); // Temporarily disabled
+const analyticsRoutes = require("./routes/analytics.routes");
 
 // Services
 const BackgroundJobsService = require("./services/backgroundJobs.service");
+const WebSocketService = require("./services/websocket.service");
 const { seedUsers, seedCategories } = require("./scripts/seed");
 
 // Initialize Express app
@@ -26,18 +29,50 @@ const app = express();
 // Connect to MongoDB and seed demo data
 const initializeDatabase = async () => {
   try {
-    await connectDB();
-    // Seed demo users and categories if they don't exist
-    await seedUsers();
-    await seedCategories();
-    logger.info("Database initialization completed");
+    logger.info("Attempting to connect to MongoDB...");
+    const dbConnected = await connectDB();
+    if (dbConnected) {
+      logger.info("MongoDB connection successful, starting seeding...");
+      // Seed demo users and categories if they don't exist
+      await seedUsers();
+      await seedCategories();
+      logger.info("Database initialization completed successfully");
+    } else {
+      logger.warn("Database connection failed - continuing without database");
+    }
   } catch (error) {
     logger.error("Database initialization failed:", error);
+    logger.warn("Continuing without database - some features may not work");
   }
 };
 
-initializeDatabase();
+// Initialize database in background (completely non-blocking)
+const initDB = async () => {
+  try {
+    logger.info("Attempting to connect to MongoDB...");
+    const dbConnected = await connectDB();
+    if (dbConnected) {
+      logger.info("MongoDB connection successful, starting seeding...");
+      try {
+        await seedUsers();
+        await seedCategories();
+        logger.info("Database seeding completed successfully");
+      } catch (seedError) {
+        logger.error("Database seeding failed:", seedError);
+      }
+    } else {
+      logger.warn("Database connection failed - continuing without database");
+    }
+  } catch (error) {
+    logger.error("Database initialization failed:", error);
+    logger.warn("Continuing without database - some features may not work");
+  }
+};
 
+// Start database connection after a delay (non-blocking)
+setTimeout(initDB, 2000);
+
+logger.info("Loading security middleware...");
 // Security middleware
 app.use(
   helmet({
@@ -45,6 +80,7 @@ app.use(
   })
 );
 
+logger.info("Configuring CORS...");
 // CORS configuration
 const corsOptions = {
   origin: function (origin, callback) {
@@ -54,6 +90,7 @@ const corsOptions = {
     const allowedOrigins = [
       process.env.CLIENT_URL || "http://localhost:3000",
       "http://localhost:3000",
+      "http://localhost:3001", // Frontend served port
       "http://localhost:5173", // Vite default port
     ];
 
@@ -70,6 +107,7 @@ const corsOptions = {
 
 app.use(cors(corsOptions));
 
+logger.info("Setting up rate limiting...");
 // Rate limiting
 const limiter = rateLimit({
   windowMs: (process.env.RATE_LIMIT_WINDOW || 15) * 60 * 1000, // 15 minutes default
@@ -84,6 +122,7 @@ const limiter = rateLimit({
 
 app.use(limiter);
 
+logger.info("Setting up body parsing middleware...");
 // Body parsing middleware
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
@@ -91,6 +130,7 @@ app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 // Cookie parser
 app.use(cookieParser());
 
+logger.info("Setting up API routes...");
 // Request logging in development
 if (process.env.NODE_ENV === "development") {
   app.use((req, res, next) => {
@@ -115,6 +155,8 @@ app.use("/api/auth", authRoutes);
 app.use("/api/complaints", complaintRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/staff", staffRoutes);
+// app.use("/api/uploads", uploadRoutes); // Temporarily disabled
+app.use("/api/analytics", analyticsRoutes);
 
 // Welcome route
 app.get("/", (req, res) => {
@@ -138,23 +180,42 @@ app.use(notFound);
 // Global error handler (must be last)
 app.use(errorHandler);
 
+logger.info("All middleware and routes configured successfully");
+
 // Handle unhandled promise rejections
 process.on("unhandledRejection", (err, promise) => {
+  console.error("=== UNHANDLED PROMISE REJECTION ===");
+  console.error("Error:", err);
+  console.error("Stack:", err?.stack);
+  console.error("Promise:", promise);
   logger.error("Unhandled Promise Rejection:", err);
-  // Close server & exit process
-  if (server) {
-    server.close(() => {
+  logger.warn(
+    "Server will continue running but some features may not work properly"
+  );
+  // Don't exit in development mode
+  if (process.env.NODE_ENV === "production") {
+    // Close server & exit process only in production
+    if (server) {
+      server.close(() => {
+        process.exit(1);
+      });
+    } else {
       process.exit(1);
-    });
-  } else {
-    process.exit(1);
+    }
   }
 });
 
 // Handle uncaught exceptions
 process.on("uncaughtException", (err) => {
+  console.error("=== UNCAUGHT EXCEPTION ===");
+  console.error("Error:", err);
+  console.error("Stack:", err?.stack);
   logger.error("Uncaught Exception:", err);
-  process.exit(1);
+  if (process.env.NODE_ENV === "production") {
+    process.exit(1);
+  } else {
+    logger.warn("Server will continue running in development mode");
+  }
 });
 
 // Graceful shutdown
@@ -189,12 +250,27 @@ const PORT = process.env.PORT || 5000;
 const server = app.listen(PORT, () => {
   logger.info(`Server running in ${process.env.NODE_ENV} mode on port ${PORT}`);
 
-  // Start background jobs after server is ready
+  // Initialize WebSocket service
   try {
-    BackgroundJobsService.startAll();
-    logger.info("Background jobs initialized successfully");
+    WebSocketService.initialize(server);
+    logger.info("WebSocket service initialized successfully");
+  } catch (error) {
+    logger.error("Failed to initialize WebSocket service:", error);
+    logger.warn("WebSocket features may not be available");
+  }
+
+  // Start background jobs after server is ready (only if database is connected)
+  try {
+    // Check if mongoose is connected before starting background jobs
+    if (require('mongoose').connection.readyState === 1) {
+      BackgroundJobsService.startAll();
+      logger.info("Background jobs initialized successfully");
+    } else {
+      logger.info("Background jobs disabled - database not connected");
+    }
   } catch (error) {
     logger.error("Failed to start background jobs:", error);
+    logger.warn("Background job features may not be available");
   }
 
   // Log available routes in development

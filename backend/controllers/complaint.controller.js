@@ -2,6 +2,8 @@ const Complaint = require("../models/Complaint");
 const Category = require("../models/Category");
 const User = require("../models/User");
 const Feedback = require("../models/Feedback");
+const emailService = require("../services/email/emailService");
+const WebSocketService = require("../services/websocket.service");
 const {
   HTTP_STATUS,
   RESPONSE_MESSAGES,
@@ -47,10 +49,33 @@ const createComplaint = asyncHandler(async (req, res) => {
       `New complaint created: ${complaint._id} by user: ${req.user.email}`
     );
 
+    // Send email notification to user
+    try {
+      await emailService.sendComplaintCreated(complaint, complaint.user);
+      logger.info(`Email notification sent for complaint: ${complaint._id}`);
+    } catch (emailError) {
+      logger.error(
+        `Failed to send email notification for complaint ${complaint._id}:`,
+        emailError
+      );
+      // Don't fail the request if email fails
+    }
+
+    // Send real-time notification
+    try {
+      WebSocketService.notifyComplaintCreated(complaint, complaint.user);
+    } catch (socketError) {
+      logger.error(
+        `Failed to send WebSocket notification for complaint ${complaint._id}:`,
+        socketError
+      );
+      // Don't fail the request if WebSocket fails
+    }
+
     res.status(HTTP_STATUS.CREATED).json({
       success: true,
       message: RESPONSE_MESSAGES.SUCCESS.COMPLAINT_CREATED,
-      complaint,
+      data: complaint,
     });
   } catch (error) {
     if (error.name === "ValidationError") {
@@ -398,6 +423,7 @@ const updateComplaintStatus = asyncHandler(async (req, res) => {
   }
 
   try {
+    const previousStatus = complaint.status; // Store previous status for email
     await complaint.updateStatus(status, req.user.id, remarks);
 
     await complaint.populate([
@@ -410,10 +436,43 @@ const updateComplaintStatus = asyncHandler(async (req, res) => {
       `Complaint status updated: ${complaintId} to ${status} by user: ${req.user.email}`
     );
 
+    // Send email notification to user
+    try {
+      await emailService.sendStatusUpdate(
+        complaint,
+        complaint.user,
+        previousStatus,
+        req.user
+      );
+      logger.info(`Status update email sent for complaint: ${complaintId}`);
+    } catch (emailError) {
+      logger.error(
+        `Failed to send status update email for complaint ${complaintId}:`,
+        emailError
+      );
+      // Don't fail the request if email fails
+    }
+
+    // Send real-time notification
+    try {
+      WebSocketService.notifyStatusUpdate(
+        complaint,
+        req.user,
+        previousStatus,
+        status
+      );
+    } catch (socketError) {
+      logger.error(
+        `Failed to send WebSocket status update notification for complaint ${complaintId}:`,
+        socketError
+      );
+      // Don't fail the request if WebSocket fails
+    }
+
     res.status(HTTP_STATUS.OK).json({
       success: true,
       message: RESPONSE_MESSAGES.SUCCESS.STATUS_UPDATED,
-      complaint,
+      data: complaint,
     });
   } catch (error) {
     if (error.message.includes("Status is already")) {
@@ -474,16 +533,104 @@ const assignComplaint = asyncHandler(async (req, res) => {
       `Complaint assigned: ${complaintId} to ${staffMember.email} by admin: ${req.user.email}`
     );
 
+    // Send email notification to assigned staff member
+    try {
+      await emailService.sendStaffAssignment(complaint, staffMember, req.user);
+      logger.info(
+        `Assignment email sent to staff: ${staffMember.email} for complaint: ${complaintId}`
+      );
+    } catch (emailError) {
+      logger.error(
+        `Failed to send assignment email for complaint ${complaintId}:`,
+        emailError
+      );
+      // Don't fail the request if email fails
+    }
+
+    // Send real-time notification
+    try {
+      WebSocketService.notifyStaffAssignment(complaint, staffMember, req.user);
+    } catch (socketError) {
+      logger.error(
+        `Failed to send WebSocket assignment notification for complaint ${complaintId}:`,
+        socketError
+      );
+      // Don't fail the request if WebSocket fails
+    }
+
     res.status(HTTP_STATUS.OK).json({
       success: true,
       message: RESPONSE_MESSAGES.SUCCESS.COMPLAINT_ASSIGNED,
-      complaint,
+      data: complaint,
     });
   } catch (error) {
     if (error.message.includes("Cannot assign")) {
       throw new AppError(error.message, HTTP_STATUS.BAD_REQUEST);
     }
     throw error;
+  }
+});
+
+/**
+ * @desc    Unassign complaint from staff
+ * @route   PATCH /api/complaints/:id/unassign
+ * @access  Private (Admin only)
+ */
+const unassignComplaint = asyncHandler(async (req, res) => {
+  const complaintId = req.params.id;
+
+  const complaint = await Complaint.findById(complaintId).populate("category");
+  if (!complaint) {
+    throw new AppError(
+      RESPONSE_MESSAGES.ERROR.COMPLAINT_NOT_FOUND,
+      HTTP_STATUS.NOT_FOUND
+    );
+  }
+
+  if (!complaint.assignedTo) {
+    throw new AppError(
+      "Complaint is not currently assigned to any staff member",
+      HTTP_STATUS.BAD_REQUEST
+    );
+  }
+
+  try {
+    // Unassign the complaint
+    const previouslyAssigned = complaint.assignedTo;
+    complaint.assignedTo = null;
+    complaint.status = COMPLAINT_STATUS.SUBMITTED;
+
+    // Add to status history
+    complaint.statusHistory.push({
+      status: COMPLAINT_STATUS.SUBMITTED,
+      timestamp: new Date(),
+      updatedBy: req.user.id,
+      remarks: "Complaint unassigned and returned to queue",
+    });
+
+    await complaint.save();
+
+    await complaint.populate([
+      { path: "user", select: "name email" },
+      { path: "category", select: "name department resolutionTimeHours" },
+      { path: "statusHistory.updatedBy", select: "name email role" },
+    ]);
+
+    logger.info(
+      `Complaint unassigned: ${complaintId} (was assigned to ${previouslyAssigned}) by admin: ${req.user.email}`
+    );
+
+    res.status(HTTP_STATUS.OK).json({
+      success: true,
+      message: "Complaint unassigned successfully and returned to queue",
+      data: complaint,
+    });
+  } catch (error) {
+    logger.error(`Error unassigning complaint ${complaintId}:`, error);
+    throw new AppError(
+      "Error unassigning complaint",
+      HTTP_STATUS.INTERNAL_SERVER_ERROR
+    );
   }
 });
 
@@ -592,6 +739,209 @@ const getComplaintAnalytics = asyncHandler(async (req, res) => {
   }
 });
 
+/**
+ * @desc    Export complaints to CSV format
+ * @route   GET /api/complaints/export
+ * @access  Private (Staff/Admin)
+ */
+const exportComplaints = asyncHandler(async (req, res) => {
+  try {
+    // Build the filter query similar to getComplaints
+    const filters = {};
+    const {
+      search,
+      status,
+      priority,
+      category,
+      assignedTo,
+      department,
+      startDate,
+      endDate,
+      escalated,
+      hasAttachments,
+      minResolutionTime,
+      maxResolutionTime,
+      tags,
+      format = "csv",
+    } = req.query;
+
+    // Apply role-based filtering
+    if (req.user.role === USER_ROLES.USER) {
+      filters.user = req.user.id;
+    } else if (req.user.role === USER_ROLES.STAFF && req.user.department) {
+      // Staff can only see complaints from their department
+      const categories = await Category.find({
+        department: req.user.department,
+        isActive: true,
+      }).select("_id");
+      filters.category = { $in: categories.map((cat) => cat._id) };
+    }
+
+    // Apply search filter
+    if (search) {
+      filters.$or = [
+        { title: { $regex: search, $options: "i" } },
+        { description: { $regex: search, $options: "i" } },
+        { ticketId: { $regex: search, $options: "i" } },
+      ];
+    }
+
+    // Apply status filter
+    if (status) {
+      const statusArray = status.split(",");
+      filters.status = { $in: statusArray };
+    }
+
+    // Apply priority filter
+    if (priority) {
+      const priorityArray = priority.split(",");
+      filters.priority = { $in: priorityArray };
+    }
+
+    // Apply category filter
+    if (category) {
+      const categoryArray = category.split(",");
+      filters.category = { $in: categoryArray };
+    }
+
+    // Apply assigned staff filter
+    if (assignedTo) {
+      const assignedArray = assignedTo.split(",");
+      filters.assignedTo = { $in: assignedArray };
+    }
+
+    // Apply date range filter
+    if (startDate || endDate) {
+      filters.createdAt = {};
+      if (startDate) {
+        filters.createdAt.$gte = new Date(startDate);
+      }
+      if (endDate) {
+        filters.createdAt.$lte = new Date(endDate);
+      }
+    }
+
+    // Apply escalated filter
+    if (escalated !== undefined) {
+      filters.isEscalated = escalated === "true";
+    }
+
+    // Apply attachments filter
+    if (hasAttachments !== undefined) {
+      if (hasAttachments === "true") {
+        filters.attachments = { $exists: true, $not: { $size: 0 } };
+      } else {
+        filters.$or = [
+          { attachments: { $exists: false } },
+          { attachments: { $size: 0 } },
+        ];
+      }
+    }
+
+    // Apply resolution time filter
+    if (minResolutionTime !== undefined || maxResolutionTime !== undefined) {
+      // This is complex as we need to calculate resolution time
+      // For now, we'll skip this filter in export
+    }
+
+    // Apply tags filter
+    if (tags) {
+      const tagsArray = tags.split(",");
+      filters.tags = { $in: tagsArray };
+    }
+
+    // Fetch complaints with populated data
+    const complaints = await Complaint.find(filters)
+      .populate("user", "name email")
+      .populate("category", "name")
+      .populate("assignedTo", "name email")
+      .sort({ createdAt: -1 })
+      .lean();
+
+    // Generate CSV content
+    if (format.toLowerCase() === "csv") {
+      // Define CSV headers
+      const headers = [
+        "Ticket ID",
+        "Title",
+        "Description",
+        "Category",
+        "Status",
+        "Priority",
+        "User Name",
+        "User Email",
+        "Assigned To",
+        "Created At",
+        "Updated At",
+        "Resolution Time (Hours)",
+        "Is Escalated",
+        "Has Attachments",
+      ];
+
+      // Convert complaints to CSV format
+      const csvRows = [headers.join(",")];
+
+      complaints.forEach((complaint) => {
+        const resolutionTime = complaint.resolvedAt
+          ? Math.round(
+              (new Date(complaint.resolvedAt) - new Date(complaint.createdAt)) /
+                (1000 * 60 * 60)
+            )
+          : "";
+
+        const row = [
+          complaint.ticketId ||
+            complaint._id.toString().slice(-8).toUpperCase(),
+          `"${complaint.title.replace(/"/g, '""')}"`,
+          `"${complaint.description.replace(/"/g, '""')}"`,
+          complaint.category?.name || "Unknown",
+          complaint.status,
+          complaint.priority,
+          complaint.user?.name || "Unknown",
+          complaint.user?.email || "Unknown",
+          complaint.assignedTo?.name || "Unassigned",
+          new Date(complaint.createdAt).toISOString(),
+          new Date(complaint.updatedAt).toISOString(),
+          resolutionTime,
+          complaint.isEscalated ? "Yes" : "No",
+          complaint.attachments && complaint.attachments.length > 0
+            ? "Yes"
+            : "No",
+        ];
+
+        csvRows.push(row.join(","));
+      });
+
+      const csvContent = csvRows.join("\n");
+
+      // Set response headers for CSV download
+      res.setHeader("Content-Type", "text/csv");
+      res.setHeader(
+        "Content-Disposition",
+        `attachment; filename="complaints-export-${
+          new Date().toISOString().split("T")[0]
+        }.csv"`
+      );
+
+      return res.send(csvContent);
+    }
+
+    // Default JSON response if format is not CSV
+    res.status(HTTP_STATUS.OK).json({
+      success: true,
+      message: "Complaints exported successfully",
+      data: complaints,
+      count: complaints.length,
+    });
+  } catch (error) {
+    logger.error("Error exporting complaints:", error);
+    throw new AppError(
+      "Failed to export complaints",
+      HTTP_STATUS.INTERNAL_SERVER_ERROR
+    );
+  }
+});
+
 module.exports = {
   createComplaint,
   getComplaints,
@@ -600,5 +950,7 @@ module.exports = {
   deleteComplaint,
   updateComplaintStatus,
   assignComplaint,
+  unassignComplaint,
   getComplaintAnalytics,
+  exportComplaints,
 };

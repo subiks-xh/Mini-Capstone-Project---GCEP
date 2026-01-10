@@ -135,7 +135,11 @@ const optionalAuth = async (req, res, next) => {
   }
 };
 
+const { authorize } = require("./roleCheck.middleware");
+
 module.exports = {
   authenticate,
+  protect: authenticate, // Alias for authenticate
   optionalAuth,
+  authorize, // Re-export from roleCheck middleware
 };

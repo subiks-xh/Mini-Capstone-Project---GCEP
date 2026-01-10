@@ -18,6 +18,12 @@ const connectDB = async () => {
 
 const seedUsers = async () => {
   try {
+    // Check if mongoose is connected
+    if (mongoose.connection.readyState !== 1) {
+      logger.warn("Database not connected. Skipping user seeding.");
+      return [];
+    }
+
     // Check if users already exist
     const existingUsers = await User.find({
       email: {
@@ -72,6 +78,12 @@ const seedUsers = async () => {
 
 const seedCategories = async () => {
   try {
+    // Check if mongoose is connected
+    if (mongoose.connection.readyState !== 1) {
+      logger.warn("Database not connected. Skipping category seeding.");
+      return [];
+    }
+
     // Check if categories already exist
     const existingCategories = await Category.find();
 

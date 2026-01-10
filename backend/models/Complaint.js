@@ -128,13 +128,30 @@ const complaintSchema = new mongoose.Schema(
 
     attachments: [
       {
-        filename: String,
-        originalName: String,
-        mimetype: String,
-        size: Number,
+        filename: {
+          type: String,
+          required: true,
+        },
+        originalName: {
+          type: String,
+          required: true,
+        },
+        mimetype: {
+          type: String,
+          required: true,
+        },
+        size: {
+          type: Number,
+          required: true,
+        },
         uploadedAt: {
           type: Date,
           default: Date.now,
+        },
+        uploadedBy: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "User",
+          required: true,
         },
       },
     ],
